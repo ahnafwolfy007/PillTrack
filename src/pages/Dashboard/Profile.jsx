@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -6,40 +6,118 @@ import { Input } from '../../components/ui/Input';
 import { Label } from '../../components/ui/Label';
 import { 
     User, Mail, Phone, MapPin, Camera, Shield, 
-    Calendar, Pill, Activity, Edit2, Save, X, Check
+    Calendar, Pill, Activity, Edit2, Save, X, Check, Loader2
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useAuth } from '../../context/AuthContext';
+import { userService, medicationService } from '../../services/api';
 
 const Profile = () => {
+    const { user, refreshProfile } = useAuth();
     const [isEditing, setIsEditing] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
+    const [stats, setStats] = useState([
+        { label: 'Active Medications', value: '0', icon: Pill, color: 'text-blue-600 bg-blue-50' },
+        { label: 'Adherence Rate', value: '-', icon: Activity, color: 'text-green-600 bg-green-50' },
+        { label: 'Days Tracking', value: '0', icon: Calendar, color: 'text-purple-600 bg-purple-50' }
+    ]);
+
     const [profile, setProfile] = useState({
-        name: 'Alex Johnson',
-        email: 'alex.johnson@email.com',
-        phone: '+1 (555) 123-4567',
-        address: '123 Main Street, New York, NY 10001',
-        dateOfBirth: '1990-05-15',
-        emergencyContact: 'Sarah Johnson - +1 (555) 987-6543',
+        name: user?.name || '',
+        email: user?.email || '',
+        phone: user?.phone || '',
+        address: '',
+        dateOfBirth: '',
+        emergencyContact: '',
         bloodType: 'O+',
-        allergies: 'Penicillin, Peanuts'
+        allergies: ''
     });
 
     const [tempProfile, setTempProfile] = useState({ ...profile });
 
-    const handleSave = () => {
-        setProfile(tempProfile);
-        setIsEditing(false);
+    useEffect(() => {
+        if (user) {
+            const newProfile = {
+                name: user.name || '',
+                email: user.email || '',
+                phone: user.phone || '',
+                address: user.address || '',
+                dateOfBirth: user.dateOfBirth || '',
+                emergencyContact: user.emergencyContact || '',
+                bloodType: user.bloodType || 'O+',
+                allergies: user.allergies || ''
+            };
+            setProfile(newProfile);
+            setTempProfile(newProfile);
+        }
+        fetchStats();
+    }, [user]);
+
+    const fetchStats = async () => {
+        try {
+            const medsResponse = await medicationService.getAll();
+            if (medsResponse.success && medsResponse.data) {
+                const meds = Array.isArray(medsResponse.data) ? medsResponse.data : medsResponse.data.content || [];
+                const activeMeds = meds.filter(m => m.status === 'ACTIVE').length;
+                
+                // Calculate days since first medication
+                const firstMed = meds.reduce((earliest, med) => {
+                    const createdAt = new Date(med.createdAt);
+                    return !earliest || createdAt < earliest ? createdAt : earliest;
+                }, null);
+                const daysTracking = firstMed ? Math.floor((Date.now() - firstMed) / (1000 * 60 * 60 * 24)) : 0;
+
+                setStats([
+                    { label: 'Active Medications', value: activeMeds.toString(), icon: Pill, color: 'text-blue-600 bg-blue-50' },
+                    { label: 'Adherence Rate', value: '92%', icon: Activity, color: 'text-green-600 bg-green-50' },
+                    { label: 'Days Tracking', value: Math.max(1, daysTracking).toString(), icon: Calendar, color: 'text-purple-600 bg-purple-50' }
+                ]);
+            }
+        } catch (err) {
+            console.error('Failed to fetch stats:', err);
+        }
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        setError('');
+        setSuccess('');
+        try {
+            const response = await userService.updateProfile({
+                name: tempProfile.name,
+                phone: tempProfile.phone,
+                address: tempProfile.address,
+                dateOfBirth: tempProfile.dateOfBirth,
+                emergencyContact: tempProfile.emergencyContact,
+                bloodType: tempProfile.bloodType,
+                allergies: tempProfile.allergies
+            });
+
+            if (response.success) {
+                setProfile(tempProfile);
+                setIsEditing(false);
+                setSuccess('Profile updated successfully!');
+                refreshProfile?.();
+                setTimeout(() => setSuccess(''), 3000);
+            } else {
+                setError(response.message || 'Failed to update profile');
+            }
+        } catch (err) {
+            console.error('Failed to save profile:', err);
+            setError(err.message || 'Failed to save profile');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleCancel = () => {
         setTempProfile(profile);
         setIsEditing(false);
+        setError('');
     };
-
-    const stats = [
-        { label: 'Active Medications', value: '4', icon: Pill, color: 'text-blue-600 bg-blue-50' },
-        { label: 'Adherence Rate', value: '92%', icon: Activity, color: 'text-green-600 bg-green-50' },
-        { label: 'Days Tracking', value: '127', icon: Calendar, color: 'text-purple-600 bg-purple-50' }
-    ];
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -55,15 +133,28 @@ const Profile = () => {
                     </Button>
                 ) : (
                     <div className="flex gap-2">
-                        <Button variant="outline" onClick={handleCancel} className="gap-2">
+                        <Button variant="outline" onClick={handleCancel} className="gap-2" disabled={saving}>
                             <X size={16} /> Cancel
                         </Button>
-                        <Button onClick={handleSave} className="gap-2">
-                            <Save size={16} /> Save Changes
+                        <Button onClick={handleSave} className="gap-2" disabled={saving}>
+                            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                            Save Changes
                         </Button>
                     </div>
                 )}
             </div>
+
+            {error && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                    {error}
+                </div>
+            )}
+
+            {success && (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
+                    {success}
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Profile Card */}

@@ -45,27 +45,37 @@ public class AuthService {
             throw new ResourceAlreadyExistsException("User", "email", request.getEmail());
         }
         
-        if (request.getPhone() != null && userRepository.existsByPhone(request.getPhone())) {
+        if (request.getPhone() != null && !request.getPhone().isBlank() && userRepository.existsByPhone(request.getPhone())) {
             throw new ResourceAlreadyExistsException("User", "phone", request.getPhone());
         }
         
-        // Get default user role
-        Role userRole = roleRepository.findByName(RoleType.USER)
-                .orElseThrow(() -> new ResourceNotFoundException("Role", "name", RoleType.USER.name()));
+        // Determine role from request, default to USER
+        RoleType requestedRole = RoleType.USER;
+        if (request.getRole() != null && !request.getRole().isBlank()) {
+            try {
+                requestedRole = RoleType.valueOf(request.getRole().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid role '{}', defaulting to USER", request.getRole());
+            }
+        }
+        final RoleType roleType = requestedRole;
+        
+        Role role = roleRepository.findByName(roleType)
+                .orElseThrow(() -> new ResourceNotFoundException("Role", "name", roleType.name()));
         
         User user = User.builder()
-                .name(request.getFirstName() + " " + request.getLastName())
+                .name(request.getName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phone(request.getPhone())
-                .role(userRole)
+                .role(role)
                 .isActive(true)
                 .isEmailVerified(false)
                 .build();
         
         user = userRepository.save(user);
         
-        log.info("User registered successfully with ID: {}", user.getId());
+        log.info("User registered successfully with ID: {} and role: {}", user.getId(), roleType);
         
         // Generate tokens
         String accessToken = jwtTokenProvider.generateAccessToken(user);
@@ -121,8 +131,7 @@ public class AuthService {
         
         UserResponse userResponse = UserResponse.builder()
                 .id(user.getId())
-                .firstName(user.getName())
-                .lastName("")
+                .name(user.getName())
                 .email(user.getEmail())
                 .phone(user.getPhone())
                 .address(user.getAddress())

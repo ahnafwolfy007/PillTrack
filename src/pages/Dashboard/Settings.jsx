@@ -7,9 +7,12 @@ import { Label } from '../../components/ui/Label';
 import { 
     Bell, Moon, Globe, Lock, Smartphone, Mail, 
     Volume2, Clock, Shield, Eye, EyeOff, Check,
-    ChevronRight, LogOut, Trash2
+    ChevronRight, LogOut, Trash2, Loader2
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useAuth } from '../../context/AuthContext';
+import { userService } from '../../services/api';
+import { useNavigate } from 'react-router-dom';
 
 const SettingSection = ({ title, description, children }) => (
     <Card className="border-none shadow-md">
@@ -47,6 +50,8 @@ const ToggleSetting = ({ icon: Icon, label, description, checked, onChange }) =>
 );
 
 const Settings = () => {
+    const { logout } = useAuth();
+    const navigate = useNavigate();
     const [settings, setSettings] = useState({
         pushNotifications: true,
         emailNotifications: true,
@@ -64,9 +69,56 @@ const Settings = () => {
     });
 
     const [showPassword, setShowPassword] = useState(false);
+    const [passwordForm, setPasswordForm] = useState({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+    });
+    const [passwordLoading, setPasswordLoading] = useState(false);
+    const [passwordError, setPasswordError] = useState('');
+    const [passwordSuccess, setPasswordSuccess] = useState('');
 
     const updateSetting = (key, value) => {
         setSettings(prev => ({ ...prev, [key]: value }));
+    };
+
+    const handlePasswordChange = async () => {
+        if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+            setPasswordError('New passwords do not match');
+            return;
+        }
+        if (passwordForm.newPassword.length < 6) {
+            setPasswordError('Password must be at least 6 characters');
+            return;
+        }
+
+        setPasswordLoading(true);
+        setPasswordError('');
+        setPasswordSuccess('');
+
+        try {
+            const response = await userService.changePassword({
+                currentPassword: passwordForm.currentPassword,
+                newPassword: passwordForm.newPassword
+            });
+
+            if (response.success) {
+                setPasswordSuccess('Password updated successfully!');
+                setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                setTimeout(() => setPasswordSuccess(''), 3000);
+            } else {
+                setPasswordError(response.message || 'Failed to update password');
+            }
+        } catch (error) {
+            setPasswordError(error.message || 'Failed to update password');
+        } finally {
+            setPasswordLoading(false);
+        }
+    };
+
+    const handleSignOut = () => {
+        logout();
+        navigate('/');
     };
 
     return (
@@ -172,11 +224,23 @@ const Settings = () => {
                         <Label className="flex items-center gap-2 mb-3">
                             <Lock size={18} /> Change Password
                         </Label>
+                        {passwordError && (
+                            <div className="p-3 mb-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                                {passwordError}
+                            </div>
+                        )}
+                        {passwordSuccess && (
+                            <div className="p-3 mb-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+                                {passwordSuccess}
+                            </div>
+                        )}
                         <div className="space-y-3">
                             <div className="relative">
                                 <Input 
                                     type={showPassword ? "text" : "password"} 
                                     placeholder="Current password"
+                                    value={passwordForm.currentPassword}
+                                    onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
                                 />
                                 <button 
                                     type="button"
@@ -186,9 +250,27 @@ const Settings = () => {
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
-                            <Input type="password" placeholder="New password" />
-                            <Input type="password" placeholder="Confirm new password" />
-                            <Button variant="outline" size="sm">Update Password</Button>
+                            <Input 
+                                type="password" 
+                                placeholder="New password" 
+                                value={passwordForm.newPassword}
+                                onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                            />
+                            <Input 
+                                type="password" 
+                                placeholder="Confirm new password" 
+                                value={passwordForm.confirmPassword}
+                                onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                            />
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={handlePasswordChange}
+                                disabled={passwordLoading}
+                            >
+                                {passwordLoading && <Loader2 size={14} className="animate-spin mr-2" />}
+                                Update Password
+                            </Button>
                         </div>
                     </div>
 
@@ -203,7 +285,10 @@ const Settings = () => {
 
                 {/* Account Actions */}
                 <SettingSection title="Account" description="Manage your account">
-                    <button className="flex items-center justify-between w-full py-3 text-left hover:bg-slate-50 rounded-lg px-2 -mx-2 transition-colors">
+                    <button 
+                        className="flex items-center justify-between w-full py-3 text-left hover:bg-slate-50 rounded-lg px-2 -mx-2 transition-colors"
+                        onClick={handleSignOut}
+                    >
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-slate-100 rounded-lg text-slate-600">
                                 <LogOut size={18} />

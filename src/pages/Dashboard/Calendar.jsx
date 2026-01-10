@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -6,78 +6,93 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Pill, Clock, Check, X, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { Pill, Clock, Check, X, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { doseLogService, medicationService } from '../../services/api';
 
 const Calendar = () => {
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [currentView, setCurrentView] = useState('dayGridMonth');
+    const [events, setEvents] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    // Mock medication events
-    const events = [
-        {
-            id: '1',
-            title: 'Amoxicillin 500mg',
-            start: '2026-01-10T08:00:00',
-            end: '2026-01-10T08:30:00',
-            backgroundColor: '#3B82F6',
-            borderColor: '#3B82F6',
-            extendedProps: { status: 'taken', dose: '500mg', type: 'Antibiotic' }
-        },
-        {
-            id: '2',
-            title: 'Amoxicillin 500mg',
-            start: '2026-01-10T14:00:00',
-            end: '2026-01-10T14:30:00',
-            backgroundColor: '#F59E0B',
-            borderColor: '#F59E0B',
-            extendedProps: { status: 'upcoming', dose: '500mg', type: 'Antibiotic' }
-        },
-        {
-            id: '3',
-            title: 'Amoxicillin 500mg',
-            start: '2026-01-10T20:00:00',
-            end: '2026-01-10T20:30:00',
-            backgroundColor: '#94A3B8',
-            borderColor: '#94A3B8',
-            extendedProps: { status: 'scheduled', dose: '500mg', type: 'Antibiotic' }
-        },
-        {
-            id: '4',
-            title: 'Vitamin D3 2000IU',
-            start: '2026-01-10T08:00:00',
-            backgroundColor: '#10B981',
-            borderColor: '#10B981',
-            extendedProps: { status: 'taken', dose: '2000 IU', type: 'Supplement' }
-        },
-        {
-            id: '5',
-            title: 'Metformin 500mg',
-            start: '2026-01-10T07:30:00',
-            backgroundColor: '#3B82F6',
-            borderColor: '#3B82F6',
-            extendedProps: { status: 'taken', dose: '500mg', type: 'Diabetes' }
-        },
-        {
-            id: '6',
-            title: 'Metformin 500mg',
-            start: '2026-01-10T19:30:00',
-            backgroundColor: '#94A3B8',
-            borderColor: '#94A3B8',
-            extendedProps: { status: 'scheduled', dose: '500mg', type: 'Diabetes' }
-        },
-        // Add events for other days
-        ...Array.from({ length: 30 }, (_, i) => ([
-            {
-                id: `vitamin-${i}`,
-                title: 'Vitamin D3',
-                start: `2026-01-${String(i + 1).padStart(2, '0')}T08:00:00`,
-                backgroundColor: i < 10 ? '#10B981' : '#94A3B8',
-                borderColor: i < 10 ? '#10B981' : '#94A3B8',
-                extendedProps: { status: i < 10 ? 'taken' : 'scheduled', dose: '2000 IU', type: 'Supplement' }
+    useEffect(() => {
+        fetchCalendarData();
+    }, []);
+
+    const fetchCalendarData = async () => {
+        setLoading(true);
+        try {
+            // Fetch medications and dose logs
+            const [medsResponse, logsResponse] = await Promise.all([
+                medicationService.getAll().catch(() => ({ success: false })),
+                doseLogService.getRange(
+                    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+                ).catch(() => ({ success: false }))
+            ]);
+
+            const calendarEvents = [];
+
+            // Add dose log events
+            if (logsResponse.success && logsResponse.data) {
+                const logs = Array.isArray(logsResponse.data) ? logsResponse.data : logsResponse.data.content || [];
+                logs.forEach(log => {
+                    const statusColor = log.status === 'TAKEN' ? '#10B981' : 
+                                       log.status === 'MISSED' ? '#EF4444' : 
+                                       log.status === 'SKIPPED' ? '#F59E0B' : '#94A3B8';
+                    calendarEvents.push({
+                        id: `log-${log.id}`,
+                        title: log.medicationName || 'Medication',
+                        start: log.scheduledTime || log.takenAt,
+                        backgroundColor: statusColor,
+                        borderColor: statusColor,
+                        extendedProps: {
+                            status: log.status?.toLowerCase() || 'scheduled',
+                            dose: log.dosage || '',
+                            type: log.medicationType || 'Medication'
+                        }
+                    });
+                });
             }
-        ])).flat()
-    ];
+
+            // Add upcoming scheduled doses from medications
+            if (medsResponse.success && medsResponse.data) {
+                const meds = Array.isArray(medsResponse.data) ? medsResponse.data : medsResponse.data.content || [];
+                meds.filter(m => m.status === 'ACTIVE').forEach(med => {
+                    // Generate schedule for next 30 days based on frequency
+                    const scheduleTimes = med.scheduleTimes || ['08:00'];
+                    const today = new Date();
+                    for (let i = 0; i < 30; i++) {
+                        const date = new Date(today);
+                        date.setDate(date.getDate() + i);
+                        const dateStr = date.toISOString().split('T')[0];
+                        
+                        scheduleTimes.forEach((time, idx) => {
+                            calendarEvents.push({
+                                id: `sched-${med.id}-${dateStr}-${idx}`,
+                                title: med.name,
+                                start: `${dateStr}T${time}:00`,
+                                backgroundColor: '#94A3B8',
+                                borderColor: '#94A3B8',
+                                extendedProps: {
+                                    status: 'scheduled',
+                                    dose: med.dosage,
+                                    type: med.type || 'Medication'
+                                }
+                            });
+                        });
+                    }
+                });
+            }
+
+            setEvents(calendarEvents);
+        } catch (error) {
+            console.error('Failed to fetch calendar data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleEventClick = (clickInfo) => {
         setSelectedEvent({

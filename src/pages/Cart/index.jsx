@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
@@ -8,12 +8,14 @@ import { Label } from '../../components/ui/Label';
 import { 
     ShoppingCart, Trash2, Plus, Minus, ArrowLeft, 
     CreditCard, Truck, Shield, MapPin, ChevronRight,
-    Check, Package, Tag
+    Check, Package, Tag, Loader2
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
+import { orderService } from '../../services/api';
 import { cn } from '../../utils/cn';
 
-const CartItem = ({ item, onUpdateQuantity, onRemove }) => (
+const CartItem = ({ item, onUpdateQuantity, onRemove, loading }) => (
     <motion.div
         layout
         initial={{ opacity: 0, x: -20 }}
@@ -31,7 +33,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }) => (
         <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-slate-900 truncate">{item.name}</h3>
             <p className="text-sm text-slate-500">{item.brand}</p>
-            <p className="font-bold text-primary mt-1">${item.price}</p>
+            <p className="font-bold text-primary mt-1">${parseFloat(item.price || 0).toFixed(2)}</p>
         </div>
         <div className="flex items-center gap-2">
             <Button 
@@ -39,6 +41,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }) => (
                 size="icon" 
                 className="h-8 w-8"
                 onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                disabled={loading}
             >
                 <Minus size={14} />
             </Button>
@@ -48,6 +51,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }) => (
                 size="icon" 
                 className="h-8 w-8"
                 onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                disabled={loading || (item.maxStock && item.quantity >= item.maxStock)}
             >
                 <Plus size={14} />
             </Button>
@@ -57,6 +61,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }) => (
             size="icon" 
             className="text-slate-400 hover:text-red-500"
             onClick={() => onRemove(item.id)}
+            disabled={loading}
         >
             <Trash2 size={18} />
         </Button>
@@ -65,26 +70,37 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }) => (
 
 const Cart = () => {
     const navigate = useNavigate();
-    const { items, updateQuantity, removeItem, clearCart, subtotal, shipping, total, itemCount } = useCart();
+    const { items, updateQuantity, removeItem, clearCart, subtotal, shipping, total, itemCount, loading } = useCart();
+    const { isAuthenticated, user } = useAuth();
     const [step, setStep] = useState('cart'); // cart, shipping, payment, confirmation
     const [promoCode, setPromoCode] = useState('');
     const [promoApplied, setPromoApplied] = useState(false);
+    const [orderLoading, setOrderLoading] = useState(false);
+    const [orderError, setOrderError] = useState('');
+    const [confirmedOrder, setConfirmedOrder] = useState(null);
 
     const [shippingInfo, setShippingInfo] = useState({
-        name: '',
-        phone: '',
+        name: user?.name || '',
+        phone: user?.phone || '',
         address: '',
         city: '',
         zipCode: ''
     });
 
-    // Mock cart items if context is empty (for demo)
-    const displayItems = items.length > 0 ? items : [
-        { id: 1, name: 'Amoxicillin 500mg', brand: 'PharmaCare', price: '12.99', quantity: 2, image: 'https://pngimg.com/uploads/pill/pill_PNG17239.png' },
-        { id: 2, name: 'Vitamin D3 1000IU', brand: 'NatureMade', price: '9.50', quantity: 1, image: 'https://pngimg.com/uploads/pill/pill_PNG17260.png' }
-    ];
+    const [paymentMethod, setPaymentMethod] = useState('cod');
 
-    const displaySubtotal = items.length > 0 ? subtotal : 35.48;
+    // Update shipping info when user changes
+    useEffect(() => {
+        if (user) {
+            setShippingInfo(prev => ({
+                ...prev,
+                name: user.name || prev.name,
+                phone: user.phone || prev.phone
+            }));
+        }
+    }, [user]);
+
+    const displaySubtotal = subtotal;
     const displayShipping = displaySubtotal > 50 ? 0 : 5.99;
     const discount = promoApplied ? displaySubtotal * 0.1 : 0;
     const displayTotal = displaySubtotal + displayShipping - discount;
@@ -95,12 +111,50 @@ const Cart = () => {
         }
     };
 
-    const handlePlaceOrder = () => {
-        setStep('confirmation');
-        // In real app, would call API here
+    const handlePlaceOrder = async () => {
+        if (!isAuthenticated) {
+            navigate('/auth?redirect=/cart');
+            return;
+        }
+
+        setOrderLoading(true);
+        setOrderError('');
+
+        try {
+            // Create order from cart
+            const orderData = {
+                shippingAddress: `${shippingInfo.address}, ${shippingInfo.city} ${shippingInfo.zipCode}`,
+                shippingName: shippingInfo.name,
+                shippingPhone: shippingInfo.phone,
+                paymentMethod: paymentMethod.toUpperCase(),
+                notes: promoApplied ? 'PROMO: SAVE10 applied' : ''
+            };
+
+            const response = await orderService.createFromCart(orderData);
+            
+            if (response.success) {
+                setConfirmedOrder(response.data);
+                clearCart();
+                setStep('confirmation');
+            } else {
+                setOrderError(response.message || 'Failed to place order');
+            }
+        } catch (error) {
+            console.error('Order error:', error);
+            setOrderError(error.message || 'Failed to place order. Please try again.');
+        } finally {
+            setOrderLoading(false);
+        }
+    };
+
+    const validateShipping = () => {
+        return shippingInfo.name && shippingInfo.phone && shippingInfo.address && shippingInfo.city && shippingInfo.zipCode;
     };
 
     if (step === 'confirmation') {
+        const estimatedDelivery = new Date();
+        estimatedDelivery.setDate(estimatedDelivery.getDate() + 5);
+        
         return (
             <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
                 <motion.div
@@ -118,16 +172,18 @@ const Cart = () => {
                     </motion.div>
                     <h2 className="text-2xl font-bold text-slate-900 mb-2">Order Confirmed!</h2>
                     <p className="text-slate-500 mb-6">
-                        Your order #12346 has been placed successfully. You'll receive a confirmation email shortly.
+                        Your order #{confirmedOrder?.id || 'NEW'} has been placed successfully. You'll receive a confirmation email shortly.
                     </p>
                     <div className="bg-slate-50 rounded-xl p-4 mb-6">
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-slate-500">Estimated Delivery</span>
-                            <span className="font-semibold text-slate-900">Jan 14, 2026</span>
+                            <span className="font-semibold text-slate-900">
+                                {estimatedDelivery.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
                         </div>
                         <div className="flex items-center justify-between">
                             <span className="text-slate-500">Total Paid</span>
-                            <span className="font-bold text-primary">${displayTotal.toFixed(2)}</span>
+                            <span className="font-bold text-primary">${confirmedOrder?.totalAmount?.toFixed(2) || displayTotal.toFixed(2)}</span>
                         </div>
                     </div>
                     <div className="flex gap-3">
@@ -157,7 +213,7 @@ const Cart = () => {
                         </h1>
                     </div>
                     <div className="text-sm text-slate-500">
-                        {itemCount || displayItems.reduce((sum, i) => sum + i.quantity, 0)} items
+                        {itemCount} items
                     </div>
                 </div>
             </header>
@@ -205,18 +261,24 @@ const Cart = () => {
                                 >
                                     <Card className="border-none shadow-md">
                                         <CardContent className="p-6">
+                                            {loading && (
+                                                <div className="flex items-center justify-center py-4">
+                                                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                                </div>
+                                            )}
                                             <AnimatePresence>
-                                                {displayItems.map((item) => (
+                                                {items.map((item) => (
                                                     <CartItem 
                                                         key={item.id} 
                                                         item={item}
                                                         onUpdateQuantity={updateQuantity}
                                                         onRemove={removeItem}
+                                                        loading={loading}
                                                     />
                                                 ))}
                                             </AnimatePresence>
 
-                                            {displayItems.length === 0 && (
+                                            {items.length === 0 && !loading && (
                                                 <div className="text-center py-12">
                                                     <ShoppingCart size={48} className="mx-auto text-slate-300 mb-4" />
                                                     <h3 className="text-lg font-semibold text-slate-700 mb-2">Your cart is empty</h3>
@@ -340,15 +402,26 @@ const Cart = () => {
                                         <CardContent className="space-y-4">
                                             {/* Payment Options */}
                                             {[
+                                                { id: 'cod', name: 'Cash on Delivery', desc: 'Pay when you receive' },
                                                 { id: 'card', name: 'Credit/Debit Card', desc: 'Visa, Mastercard, Amex' },
-                                                { id: 'sslcommerz', name: 'SSLCommerz', desc: 'bKash, Nagad, Rocket' },
-                                                { id: 'cod', name: 'Cash on Delivery', desc: 'Pay when you receive' }
+                                                { id: 'bkash', name: 'bKash', desc: 'Mobile payment' }
                                             ].map((method) => (
                                                 <label 
                                                     key={method.id}
-                                                    className="flex items-center gap-4 p-4 border border-slate-200 rounded-xl cursor-pointer hover:border-primary hover:bg-primary/5 transition-all"
+                                                    className={cn(
+                                                        "flex items-center gap-4 p-4 border rounded-xl cursor-pointer transition-all",
+                                                        paymentMethod === method.id 
+                                                            ? "border-primary bg-primary/5" 
+                                                            : "border-slate-200 hover:border-primary hover:bg-primary/5"
+                                                    )}
                                                 >
-                                                    <input type="radio" name="payment" className="accent-primary w-4 h-4" defaultChecked={method.id === 'card'} />
+                                                    <input 
+                                                        type="radio" 
+                                                        name="payment" 
+                                                        className="accent-primary w-4 h-4" 
+                                                        checked={paymentMethod === method.id}
+                                                        onChange={() => setPaymentMethod(method.id)}
+                                                    />
                                                     <div>
                                                         <p className="font-medium text-slate-900">{method.name}</p>
                                                         <p className="text-sm text-slate-500">{method.desc}</p>
@@ -410,15 +483,27 @@ const Cart = () => {
                                     </div>
                                 </div>
 
+                                {orderError && (
+                                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm mb-4">
+                                        {orderError}
+                                    </div>
+                                )}
+
                                 <Button 
                                     className="w-full gap-2 h-12"
+                                    disabled={items.length === 0 || orderLoading || (step === 'shipping' && !validateShipping())}
                                     onClick={() => {
+                                        if (!isAuthenticated && step === 'cart') {
+                                            navigate('/auth?redirect=/cart');
+                                            return;
+                                        }
                                         if (step === 'cart') setStep('shipping');
                                         else if (step === 'shipping') setStep('payment');
                                         else handlePlaceOrder();
                                     }}
                                 >
-                                    {step === 'cart' ? 'Proceed to Checkout' : 
+                                    {orderLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                                    {step === 'cart' ? (isAuthenticated ? 'Proceed to Checkout' : 'Sign In to Checkout') : 
                                      step === 'shipping' ? 'Continue to Payment' : 'Place Order'}
                                     <ChevronRight size={18} />
                                 </Button>

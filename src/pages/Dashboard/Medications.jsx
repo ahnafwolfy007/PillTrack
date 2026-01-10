@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { Search, Plus, MoreVertical, Calendar, Clock, AlertTriangle, Edit, Trash2, Eye } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Plus, MoreVertical, Calendar, Clock, AlertTriangle, Edit, Trash2, Eye, Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent } from '../../components/ui/Card';
 import { motion, AnimatePresence } from 'framer-motion';
 import AddMedicationModal from '../../components/medication/AddMedicationModal';
+import { medicationService } from '../../services/api';
 
 const MedicationItem = ({ name, dose, frequency, stock, nextDose, image, i, onEdit, onDelete }) => {
     const [showActions, setShowActions] = useState(false);
@@ -94,29 +95,66 @@ const MedicationItem = ({ name, dose, frequency, stock, nextDose, image, i, onEd
 const Medications = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [medications, setMedications] = useState([
-        { id: 1, name: "Amoxicillin", dose: "500mg", frequency: "3x daily", stock: 85, nextDose: "14:00 Today" },
-        { id: 2, name: "Lisinopril", dose: "10mg", frequency: "1x daily", stock: 30, nextDose: "08:00 Tomorrow" },
-        { id: 3, name: "Metformin", dose: "500mg", frequency: "2x daily with meals", stock: 15, nextDose: "19:00 Today" },
-        { id: 4, name: "Vitamin D3", dose: "2000 IU", frequency: "1x daily", stock: 95, nextDose: "08:00 Tomorrow" }
-    ]);
+    const [medications, setMedications] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [deleting, setDeleting] = useState(null);
+    
+    useEffect(() => {
+        fetchMedications();
+    }, []);
+    
+    const fetchMedications = async () => {
+        try {
+            setLoading(true);
+            const data = await medicationService.getAll();
+            // Map backend data to frontend format
+            const mapped = (data || []).map(med => ({
+                id: med.id,
+                name: med.name,
+                dose: med.strength,
+                frequency: med.frequency,
+                stock: med.inventory || med.currentQuantity || 0,
+                refillThreshold: med.refillThreshold || 10,
+                nextDose: med.nextDose || 'N/A',
+                status: med.status,
+                image: med.imageUrl
+            }));
+            setMedications(mapped);
+        } catch (error) {
+            console.error('Failed to fetch medications:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
     
     const filteredMedications = medications.filter(med => 
-        med.name.toLowerCase().includes(searchQuery.toLowerCase())
+        med.name?.toLowerCase().includes(searchQuery.toLowerCase())
     );
     
-    const handleAddMedication = (newMed) => {
-        setMedications(prev => [...prev, { 
-            id: Date.now(), 
-            ...newMed, 
-            stock: 100, 
-            nextDose: "08:00 Tomorrow" 
-        }]);
+    const handleAddMedication = () => {
+        setIsModalOpen(false);
+        fetchMedications();
     };
     
-    const handleDeleteMedication = (id) => {
-        setMedications(prev => prev.filter(med => med.id !== id));
+    const handleDeleteMedication = async (id) => {
+        try {
+            setDeleting(id);
+            await medicationService.delete(id);
+            setMedications(prev => prev.filter(med => med.id !== id));
+        } catch (error) {
+            console.error('Failed to delete medication:', error);
+        } finally {
+            setDeleting(null);
+        }
     };
+    
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
     
     return (
         <div className="space-y-6">

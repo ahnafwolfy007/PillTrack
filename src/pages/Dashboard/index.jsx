@@ -1,35 +1,123 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Pill, Clock, AlertCircle, CheckCircle, TrendingUp, Calendar as CalendarIcon, MoreVertical, Plus, ShoppingCart } from 'lucide-react';
+import { Pill, Clock, AlertCircle, CheckCircle, TrendingUp, Calendar as CalendarIcon, MoreVertical, Plus, ShoppingCart, Loader2 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { cn } from '../../utils/cn';
 import { Link, useNavigate } from 'react-router-dom';
 import AddMedicationModal from '../../components/medication/AddMedicationModal';
+import { useAuth } from '../../context';
+import { medicationService, doseLogService } from '../../services/api';
 
 const Dashboard = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [isModalOpen, setIsModalOpen] = useState(false);
-    
+    const [loading, setLoading] = useState(true);
+    const [medications, setMedications] = useState([]);
+    const [todayDoses, setTodayDoses] = useState([]);
+    const [lowStockMeds, setLowStockMeds] = useState([]);
+    const [stats, setStats] = useState({
+        adherenceScore: 0,
+        activeMeds: 0,
+        nextRefillDays: null,
+        alertCount: 0
+    });
+
+    useEffect(() => {
+        fetchDashboardData();
+    }, []);
+
+    const fetchDashboardData = async () => {
+        try {
+            setLoading(true);
+            const [medsData, dosesData, lowStockData] = await Promise.all([
+                medicationService.getAll().catch(() => []),
+                doseLogService.getToday().catch(() => []),
+                medicationService.getLowStock().catch(() => [])
+            ]);
+
+            setMedications(medsData || []);
+            setTodayDoses(dosesData || []);
+            setLowStockMeds(lowStockData || []);
+
+            // Calculate stats
+            const activeMeds = Array.isArray(medsData) ? medsData.filter(m => m.status === 'ACTIVE').length : 0;
+            const takenDoses = Array.isArray(dosesData) ? dosesData.filter(d => d.status === 'TAKEN').length : 0;
+            const totalDoses = Array.isArray(dosesData) ? dosesData.length : 0;
+            const adherenceScore = totalDoses > 0 ? Math.round((takenDoses / totalDoses) * 100) : 100;
+
+            setStats({
+                adherenceScore,
+                activeMeds,
+                nextRefillDays: lowStockData?.length > 0 ? 'Soon' : 'N/A',
+                alertCount: lowStockData?.length || 0
+            });
+        } catch (error) {
+            console.error('Failed to fetch dashboard data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleMarkAsTaken = async (doseId) => {
+        try {
+            await doseLogService.markAsTaken(doseId);
+            fetchDashboardData();
+        } catch (error) {
+            console.error('Failed to mark dose as taken:', error);
+        }
+    };
+
+    const handleMedicationAdded = () => {
+        setIsModalOpen(false);
+        fetchDashboardData();
+    };
+
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good Morning';
+        if (hour < 18) return 'Good Afternoon';
+        return 'Good Evening';
+    };
+
+    const userName = user?.name?.split(' ')[0] || 'there';
+
+    // Calculate adherence chart data
     const adherenceData = [
-        { name: 'Taken', value: 85, color: '#10B981' }, // emerald-500
-        { name: 'Missed', value: 5, color: '#EF4444' }, // red-500
-        { name: 'Skipped', value: 10, color: '#F59E0B' }, // amber-500
+        { name: 'Taken', value: stats.adherenceScore, color: '#10B981' },
+        { name: 'Missed', value: Math.max(0, 100 - stats.adherenceScore), color: '#EF4444' },
     ];
 
-    const timeline = [
-        { time: '08:00', name: 'Vitamin D', dose: '1000 IU', status: 'taken' },
-        { time: '13:00', name: 'Amoxicillin', dose: '500mg', status: 'upcoming' },
-        { time: '20:00', name: 'Amoxicillin', dose: '500mg', status: 'future' },
-    ];
+    // Get next upcoming dose
+    const upcomingDose = todayDoses.find(d => d.status === 'PENDING' || d.status === 'UPCOMING');
+    
+    // Build timeline from today's doses
+    const timeline = todayDoses.slice(0, 5).map(dose => ({
+        id: dose.id,
+        time: dose.scheduledTime?.substring(11, 16) || '--:--',
+        name: dose.medicationName || dose.medication?.name || 'Unknown',
+        dose: dose.dosage || dose.medication?.strength || '',
+        status: dose.status === 'TAKEN' ? 'taken' : 
+                dose.status === 'PENDING' ? 'upcoming' : 
+                dose.status === 'SKIPPED' ? 'skipped' : 'future'
+    }));
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Good Afternoon, Alex</h1>
+                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{getGreeting()}, {userName}</h1>
                     <p className="text-slate-500">Here's your daily health overview.</p>
                 </div>
                 <div className="flex gap-3">
@@ -45,10 +133,10 @@ const Dashboard = () => {
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                    { label: 'Adherence Score', value: '92%', icon: TrendingUp, color: 'text-green-500', bg: 'bg-green-50' },
-                    { label: 'Active Meds', value: '4', icon: Pill, color: 'text-blue-500', bg: 'bg-blue-50' },
-                    { label: 'Next Refill', value: '3 Days', icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
-                    { label: 'Alerts', value: '1', icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-50' }
+                    { label: 'Adherence Score', value: `${stats.adherenceScore}%`, icon: TrendingUp, color: 'text-green-500', bg: 'bg-green-50' },
+                    { label: 'Active Meds', value: stats.activeMeds.toString(), icon: Pill, color: 'text-blue-500', bg: 'bg-blue-50' },
+                    { label: 'Next Refill', value: stats.nextRefillDays || 'N/A', icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
+                    { label: 'Alerts', value: stats.alertCount.toString(), icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-50' }
                 ].map((stat, i) => (
                     <motion.div
                         key={i}
@@ -85,23 +173,40 @@ const Dashboard = () => {
                             </div>
 
                             <CardContent className="relative z-10 p-8 sm:p-10 flex flex-col sm:flex-row items-center justify-between gap-8">
-                                <div className="space-y-6 text-center sm:text-left">
-                                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-sm font-medium border border-white/20">
-                                        <Clock size={14} /> Upcoming in 45 mins
+                                {upcomingDose ? (
+                                    <div className="space-y-6 text-center sm:text-left">
+                                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-sm font-medium border border-white/20">
+                                            <Clock size={14} /> Upcoming at {upcomingDose.scheduledTime?.substring(11, 16) || '--:--'}
+                                        </div>
+                                        <div>
+                                            <h2 className="text-4xl font-bold mb-2">{upcomingDose.medicationName || upcomingDose.medication?.name || 'Medication'}</h2>
+                                            <p className="text-blue-100 text-lg">{upcomingDose.dosage || upcomingDose.medication?.strength || ''} • {upcomingDose.instructions || 'Take as directed'}</p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-3 justify-center sm:justify-start">
+                                            <Button size="lg" className="bg-white text-primary hover:bg-white/90 shadow-xl border-0" onClick={() => handleMarkAsTaken(upcomingDose.id)}>
+                                                Take Now
+                                            </Button>
+                                            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 hover:text-white">
+                                                Snooze 10m
+                                            </Button>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h2 className="text-4xl font-bold mb-2">Amoxicillin</h2>
-                                        <p className="text-blue-100 text-lg">500mg • Take with food</p>
+                                ) : (
+                                    <div className="space-y-6 text-center sm:text-left">
+                                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-sm font-medium border border-white/20">
+                                            <CheckCircle size={14} /> All caught up!
+                                        </div>
+                                        <div>
+                                            <h2 className="text-4xl font-bold mb-2">No Upcoming Doses</h2>
+                                            <p className="text-blue-100 text-lg">You've completed all scheduled doses for today.</p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-3 justify-center sm:justify-start">
+                                            <Button size="lg" className="bg-white text-primary hover:bg-white/90 shadow-xl border-0" onClick={() => setIsModalOpen(true)}>
+                                                <Plus className="w-4 h-4 mr-2" /> Add Medication
+                                            </Button>
+                                        </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-3 justify-center sm:justify-start">
-                                        <Button size="lg" className="bg-white text-primary hover:bg-white/90 shadow-xl border-0">
-                                            Take Now
-                                        </Button>
-                                        <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 hover:text-white">
-                                            Snooze 10m
-                                        </Button>
-                                    </div>
-                                </div>
+                                )}
 
                                 {/* 3D-like Visual Placeholder */}
                                 <div className="w-40 h-40 bg-white/10 rounded-full backdrop-blur-md border border-white/20 flex items-center justify-center shadow-2xl relative">
@@ -121,10 +226,11 @@ const Dashboard = () => {
                             </Link>
                         </CardHeader>
                         <CardContent>
+                            {timeline.length > 0 ? (
                             <div className="space-y-6 relative before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
                                 {timeline.map((item, i) => (
                                     <motion.div
-                                        key={i}
+                                        key={item.id || i}
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: 0.3 + (i * 0.1) }}
@@ -142,16 +248,27 @@ const Dashboard = () => {
                                             <div className="flex justify-between items-start">
                                                 <div>
                                                     <h4 className="font-semibold text-slate-900">{item.name}</h4>
-                                                    <p className="text-sm text-slate-500">{item.dose} • {item.status === 'taken' ? 'Taken at 8:05' : ' Scheduled for ' + item.time}</p>
+                                                    <p className="text-sm text-slate-500">{item.dose} • {item.status === 'taken' ? 'Completed' : 'Scheduled for ' + item.time}</p>
                                                 </div>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
-                                                    <MoreVertical size={16} />
-                                                </Button>
+                                                {item.status === 'upcoming' && (
+                                                    <Button variant="ghost" size="sm" className="text-primary" onClick={() => handleMarkAsTaken(item.id)}>
+                                                        Take
+                                                    </Button>
+                                                )}
                                             </div>
                                         </div>
                                     </motion.div>
                                 ))}
                             </div>
+                            ) : (
+                                <div className="text-center py-8 text-slate-500">
+                                    <Pill size={48} className="mx-auto mb-4 opacity-20" />
+                                    <p>No doses scheduled for today</p>
+                                    <Button variant="link" className="mt-2" onClick={() => setIsModalOpen(true)}>
+                                        Add your first medication
+                                    </Button>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
@@ -162,7 +279,7 @@ const Dashboard = () => {
                     <Card className="border-none shadow-md">
                         <CardHeader>
                             <CardTitle>Adherence</CardTitle>
-                            <CardDescription>Weekly overview</CardDescription>
+                            <CardDescription>Today's overview</CardDescription>
                         </CardHeader>
                         <CardContent className="h-[250px] relative">
                             <ResponsiveContainer width="100%" height="100%">
@@ -182,8 +299,8 @@ const Dashboard = () => {
                                 </PieChart>
                             </ResponsiveContainer>
                             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                <span className="text-3xl font-bold text-slate-800">92%</span>
-                                <span className="text-xs text-slate-500 font-medium">Excellent</span>
+                                <span className="text-3xl font-bold text-slate-800">{stats.adherenceScore}%</span>
+                                <span className="text-xs text-slate-500 font-medium">{stats.adherenceScore >= 90 ? 'Excellent' : stats.adherenceScore >= 70 ? 'Good' : 'Needs Improvement'}</span>
                             </div>
                         </CardContent>
                         <div className="px-6 pb-6 flex justify-center gap-4 text-xs text-slate-500">
@@ -197,6 +314,7 @@ const Dashboard = () => {
                     </Card>
 
                     {/* Low Stock Alert */}
+                    {lowStockMeds.length > 0 ? (
                     <Card className="border-l-4 border-amber-500 bg-amber-50/50 border-y-0 border-r-0 shadow-sm">
                         <CardContent className="p-4 flex gap-4">
                             <div className="p-2 bg-amber-100 rounded-lg h-fit text-amber-600">
@@ -204,19 +322,32 @@ const Dashboard = () => {
                             </div>
                             <div>
                                 <h4 className="font-semibold text-slate-900">Low Stock Alert</h4>
-                                <p className="text-sm text-slate-600 mt-1">Vitamin D is running low (4 pills left). Refill soon.</p>
+                                <p className="text-sm text-slate-600 mt-1">{lowStockMeds[0]?.name || 'Medication'} is running low ({lowStockMeds[0]?.inventory || 0} pills left). Refill soon.</p>
                                 <Button size="sm" variant="outline" className="mt-3 border-amber-200 text-amber-700 hover:bg-amber-100 bg-white" onClick={() => navigate('/marketplace')}>
                                     <ShoppingCart size={14} className="mr-2" /> Order Refill
                                 </Button>
                             </div>
                         </CardContent>
                     </Card>
+                    ) : (
+                    <Card className="border-l-4 border-green-500 bg-green-50/50 border-y-0 border-r-0 shadow-sm">
+                        <CardContent className="p-4 flex gap-4">
+                            <div className="p-2 bg-green-100 rounded-lg h-fit text-green-600">
+                                <CheckCircle size={24} />
+                            </div>
+                            <div>
+                                <h4 className="font-semibold text-slate-900">Stock Status</h4>
+                                <p className="text-sm text-slate-600 mt-1">All medications are well-stocked.</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    )}
                 </div>
             </div>
             
             <AddMedicationModal 
                 isOpen={isModalOpen} 
-                onClose={() => setIsModalOpen(false)}
+                onClose={handleMedicationAdded}
             />
         </div>
     );

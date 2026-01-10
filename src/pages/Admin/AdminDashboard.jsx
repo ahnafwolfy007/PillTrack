@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Ta
 import { 
     Users, Store, DollarSign, Package, TrendingUp, 
     Search, Check, X, Eye, Shield, AlertTriangle,
-    Calendar, BarChart3, Activity, Plus, Edit2, Trash2
+    Calendar, BarChart3, Activity, Plus, Edit2, Trash2, Loader2
 } from 'lucide-react';
 import { 
     LineChart, Line, AreaChart, Area, BarChart, Bar,
@@ -15,6 +15,7 @@ import {
     PieChart, Pie, Cell
 } from 'recharts';
 import { cn } from '../../utils/cn';
+import { adminService, shopService } from '../../services/api';
 
 const StatCard = ({ icon: Icon, label, value, change, color, trend }) => (
     <Card className="border-none shadow-sm">
@@ -42,8 +43,79 @@ const StatCard = ({ icon: Icon, label, value, change, color, trend }) => (
 
 const AdminDashboard = () => {
     const [shopVerificationFilter, setShopVerificationFilter] = useState('pending');
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState({
+        totalUsers: 0,
+        activeShops: 0,
+        totalRevenue: 0,
+        totalOrders: 0
+    });
+    const [pendingShops, setPendingShops] = useState([]);
+    const [actionLoading, setActionLoading] = useState(null);
 
-    // Chart data
+    useEffect(() => {
+        fetchDashboardData();
+    }, []);
+
+    const fetchDashboardData = async () => {
+        setLoading(true);
+        try {
+            // Fetch dashboard stats
+            const statsResponse = await adminService.getDashboardStats();
+            if (statsResponse) {
+                setStats({
+                    totalUsers: statsResponse.totalUsers || 0,
+                    activeShops: statsResponse.activeShops || 0,
+                    totalRevenue: statsResponse.totalRevenue || 0,
+                    totalOrders: statsResponse.totalOrders || 0
+                });
+            }
+
+            // Fetch pending shops
+            const shopsResponse = await adminService.getPendingShops();
+            if (shopsResponse) {
+                const shops = Array.isArray(shopsResponse) ? shopsResponse : shopsResponse.content || [];
+                setPendingShops(shops.map(shop => ({
+                    id: shop.id,
+                    name: shop.name,
+                    email: shop.email,
+                    license: shop.licenseNumber || 'N/A',
+                    appliedDate: new Date(shop.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                    documents: shop.documentCount || 0
+                })));
+            }
+        } catch (error) {
+            console.error('Failed to fetch dashboard data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleApproveShop = async (shopId) => {
+        setActionLoading(shopId);
+        try {
+            await adminService.approveShop(shopId);
+            setPendingShops(prev => prev.filter(s => s.id !== shopId));
+        } catch (error) {
+            console.error('Failed to approve shop:', error);
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleRejectShop = async (shopId) => {
+        setActionLoading(shopId);
+        try {
+            await adminService.rejectShop(shopId);
+            setPendingShops(prev => prev.filter(s => s.id !== shopId));
+        } catch (error) {
+            console.error('Failed to reject shop:', error);
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    // Chart data (could be fetched from backend in future)
     const userGrowthData = [
         { month: 'Jul', users: 1200 },
         { month: 'Aug', users: 1800 },
@@ -78,12 +150,6 @@ const AdminDashboard = () => {
         { name: 'Verified', value: 45, color: '#10B981' },
         { name: 'Pending', value: 12, color: '#F59E0B' },
         { name: 'Rejected', value: 3, color: '#EF4444' }
-    ];
-
-    const pendingShops = [
-        { id: 1, name: 'QuickMeds Pharmacy', email: 'contact@quickmeds.com', license: 'PH-2026-001', appliedDate: 'Jan 8, 2026', documents: 4 },
-        { id: 2, name: 'HealthFirst Store', email: 'info@healthfirst.com', license: 'PH-2026-002', appliedDate: 'Jan 9, 2026', documents: 3 },
-        { id: 3, name: 'MediCare Plus', email: 'admin@medicare.com', license: 'PH-2026-003', appliedDate: 'Jan 10, 2026', documents: 5 }
     ];
 
     const medicines = [
@@ -123,28 +189,28 @@ const AdminDashboard = () => {
                 <StatCard 
                     icon={Users} 
                     label="Total Users" 
-                    value="4,850" 
+                    value={loading ? '-' : stats.totalUsers.toLocaleString()} 
                     change={15} 
                     color="bg-blue-100 text-blue-600" 
                 />
                 <StatCard 
                     icon={Store} 
                     label="Active Shops" 
-                    value="45" 
+                    value={loading ? '-' : stats.activeShops.toLocaleString()} 
                     change={8} 
                     color="bg-purple-100 text-purple-600" 
                 />
                 <StatCard 
                     icon={DollarSign} 
                     label="Total Revenue" 
-                    value="$48,500" 
+                    value={loading ? '-' : `$${stats.totalRevenue.toLocaleString()}`} 
                     change={22} 
                     color="bg-green-100 text-green-600" 
                 />
                 <StatCard 
                     icon={Package} 
                     label="Total Orders" 
-                    value="1,234" 
+                    value={loading ? '-' : stats.totalOrders.toLocaleString()} 
                     change={12} 
                     color="bg-amber-100 text-amber-600" 
                 />

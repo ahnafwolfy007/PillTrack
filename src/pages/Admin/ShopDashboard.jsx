@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -6,10 +6,11 @@ import { Input } from '../../components/ui/Input';
 import { 
     Package, DollarSign, ShoppingCart, AlertTriangle, 
     Search, Filter, Eye, Check, X, Truck, MoreVertical,
-    TrendingUp, Calendar, Clock, Edit2, Upload, Plus
+    TrendingUp, Calendar, Clock, Edit2, Upload, Plus, Loader2
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Tabs';
+import { orderService, shopMedicineService, shopService } from '../../services/api';
 
 const StatCard = ({ icon: Icon, label, value, change, color }) => (
     <Card className="border-none shadow-sm">
@@ -138,24 +139,80 @@ const InventoryRow = ({ item, onEdit }) => (
 
 const ShopDashboard = () => {
     const [orderFilter, setOrderFilter] = useState('all');
-    const [orders, setOrders] = useState([
-        { id: '12345', customer: 'John Doe', email: 'john@example.com', items: 3, total: '45.99', status: 'pending', date: 'Jan 10, 2026' },
-        { id: '12344', customer: 'Jane Smith', email: 'jane@example.com', items: 2, total: '28.50', status: 'processing', date: 'Jan 9, 2026' },
-        { id: '12343', customer: 'Bob Wilson', email: 'bob@example.com', items: 5, total: '89.99', status: 'shipped', date: 'Jan 8, 2026' },
-        { id: '12342', customer: 'Alice Brown', email: 'alice@example.com', items: 1, total: '15.00', status: 'delivered', date: 'Jan 7, 2026' }
-    ]);
+    const [loading, setLoading] = useState(true);
+    const [orders, setOrders] = useState([]);
+    const [inventory, setInventory] = useState([]);
+    const [stats, setStats] = useState({
+        totalOrders: 0,
+        revenue: 0,
+        pendingOrders: 0,
+        lowStockItems: 0
+    });
 
-    const inventory = [
-        { id: 1, name: 'Amoxicillin 500mg', brand: 'PharmaCare', price: '12.99', stock: 45, expiry: '2026-06-15' },
-        { id: 2, name: 'Vitamin D3 1000IU', brand: 'NatureMade', price: '9.50', stock: 120, expiry: '2027-01-20' },
-        { id: 3, name: 'Ibuprofen 200mg', brand: 'Advil', price: '8.25', stock: 15, expiry: '2026-03-10' },
-        { id: 4, name: 'Cetirizine 10mg', brand: 'Zyrtec', price: '15.00', stock: 8, expiry: '2026-08-22' }
-    ];
+    useEffect(() => {
+        fetchDashboardData();
+    }, []);
 
-    const handleStatusChange = (orderId, newStatus) => {
-        setOrders(prev => prev.map(order => 
-            order.id === orderId ? { ...order, status: newStatus } : order
-        ));
+    const fetchDashboardData = async () => {
+        setLoading(true);
+        try {
+            // Fetch shop orders
+            const ordersResponse = await orderService.getShopOrders(0, 20);
+            if (ordersResponse) {
+                const ordersData = Array.isArray(ordersResponse) ? ordersResponse : ordersResponse.content || [];
+                setOrders(ordersData.map(order => ({
+                    id: order.id,
+                    customer: order.customerName || 'Customer',
+                    email: order.customerEmail || '',
+                    items: order.items?.length || 0,
+                    total: order.totalAmount?.toFixed(2) || '0.00',
+                    status: order.status?.toLowerCase() || 'pending',
+                    date: new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                })));
+
+                // Calculate stats from orders
+                const totalRevenue = ordersData.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+                const pendingCount = ordersData.filter(o => o.status === 'PENDING').length;
+                setStats(prev => ({
+                    ...prev,
+                    totalOrders: ordersData.length,
+                    revenue: totalRevenue,
+                    pendingOrders: pendingCount
+                }));
+            }
+
+            // Fetch shop inventory
+            const inventoryResponse = await shopMedicineService.getMyInventory(0, 50);
+            if (inventoryResponse) {
+                const inventoryData = Array.isArray(inventoryResponse) ? inventoryResponse : inventoryResponse.content || [];
+                setInventory(inventoryData.map(item => ({
+                    id: item.id,
+                    name: item.medicineName || item.medicine?.name || 'Medicine',
+                    brand: item.medicine?.manufacturer || 'Brand',
+                    price: item.price?.toFixed(2) || '0.00',
+                    stock: item.stockQuantity || 0,
+                    expiry: item.expiryDate || '2026-12-31'
+                })));
+
+                const lowStock = inventoryData.filter(i => (i.stockQuantity || 0) < 20).length;
+                setStats(prev => ({ ...prev, lowStockItems: lowStock }));
+            }
+        } catch (error) {
+            console.error('Failed to fetch dashboard data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleStatusChange = async (orderId, newStatus) => {
+        try {
+            await orderService.updateStatus(orderId, newStatus.toUpperCase());
+            setOrders(prev => prev.map(order => 
+                order.id === orderId ? { ...order, status: newStatus } : order
+            ));
+        } catch (error) {
+            console.error('Failed to update order status:', error);
+        }
     };
 
     const filteredOrders = orderFilter === 'all' 
@@ -185,28 +242,28 @@ const ShopDashboard = () => {
                 <StatCard 
                     icon={ShoppingCart} 
                     label="Total Orders" 
-                    value="156" 
+                    value={loading ? '-' : stats.totalOrders.toString()}
                     change={12} 
                     color="bg-blue-100 text-blue-600" 
                 />
                 <StatCard 
                     icon={DollarSign} 
                     label="Revenue" 
-                    value="$4,528" 
+                    value={loading ? '-' : `$${stats.revenue.toLocaleString()}`}
                     change={8} 
                     color="bg-green-100 text-green-600" 
                 />
                 <StatCard 
                     icon={Clock} 
                     label="Pending Orders" 
-                    value="12" 
+                    value={loading ? '-' : stats.pendingOrders.toString()}
                     change={-5} 
                     color="bg-amber-100 text-amber-600" 
                 />
                 <StatCard 
                     icon={AlertTriangle} 
                     label="Low Stock Items" 
-                    value="4" 
+                    value={loading ? '-' : stats.lowStockItems.toString()}
                     color="bg-red-100 text-red-600" 
                 />
             </div>

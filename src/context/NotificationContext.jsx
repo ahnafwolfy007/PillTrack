@@ -1,44 +1,62 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { notificationService } from '../services/api';
+import { useAuth } from './AuthContext';
 
 const NotificationContext = createContext({});
 
 export const useNotifications = () => useContext(NotificationContext);
 
 export const NotificationProvider = ({ children }) => {
-    const [notifications, setNotifications] = useState([
-        {
-            id: 1,
-            type: 'reminder',
-            title: 'Medication Reminder',
-            message: 'Time to take Amoxicillin 500mg',
-            time: new Date(),
-            read: false,
-            action: 'take-medication',
-            data: { medicationId: 1 }
-        },
-        {
-            id: 2,
-            type: 'alert',
-            title: 'Low Stock Alert',
-            message: 'Vitamin D3 is running low (4 pills left)',
-            time: new Date(Date.now() - 3600000),
-            read: false,
-            action: 'refill',
-            data: { medicationId: 2 }
-        },
-        {
-            id: 3,
-            type: 'order',
-            title: 'Order Delivered',
-            message: 'Your order #1234 has been delivered',
-            time: new Date(Date.now() - 86400000),
-            read: true,
-            action: 'view-order',
-            data: { orderId: 1234 }
-        }
-    ]);
-
+    const { isAuthenticated, user } = useAuth();
+    const [notifications, setNotifications] = useState([]);
+    const [loading, setLoading] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
+
+    // Fetch notifications from backend
+    const fetchNotifications = useCallback(async () => {
+        if (!isAuthenticated) {
+            setNotifications([]);
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await notificationService.getAll(0, 20);
+            if (response.success && response.data) {
+                const notifs = Array.isArray(response.data) 
+                    ? response.data 
+                    : response.data.content || [];
+                
+                setNotifications(notifs.map(n => ({
+                    id: n.id,
+                    type: n.type?.toLowerCase() || 'info',
+                    title: n.title || 'Notification',
+                    message: n.message,
+                    time: new Date(n.createdAt),
+                    read: n.read || false,
+                    action: n.actionUrl,
+                    data: n.data
+                })));
+            }
+        } catch (err) {
+            console.error('Failed to fetch notifications:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, [isAuthenticated]);
+
+    // Fetch notifications when auth state changes
+    useEffect(() => {
+        fetchNotifications();
+    }, [fetchNotifications, user]);
+
+    // Poll for new notifications every 60 seconds
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        
+        const interval = setInterval(fetchNotifications, 60000);
+        return () => clearInterval(interval);
+    }, [isAuthenticated, fetchNotifications]);
 
     const addNotification = useCallback((notification) => {
         const newNotification = {
@@ -50,27 +68,43 @@ export const NotificationProvider = ({ children }) => {
         setNotifications(prev => [newNotification, ...prev]);
     }, []);
 
-    const markAsRead = useCallback((notificationId) => {
-        setNotifications(prev =>
-            prev.map(n =>
-                n.id === notificationId ? { ...n, read: true } : n
-            )
-        );
+    const markAsRead = useCallback(async (notificationId) => {
+        try {
+            await notificationService.markAsRead(notificationId);
+            setNotifications(prev =>
+                prev.map(n =>
+                    n.id === notificationId ? { ...n, read: true } : n
+                )
+            );
+        } catch (err) {
+            console.error('Failed to mark notification as read:', err);
+        }
     }, []);
 
-    const markAllAsRead = useCallback(() => {
-        setNotifications(prev =>
-            prev.map(n => ({ ...n, read: true }))
-        );
+    const markAllAsRead = useCallback(async () => {
+        try {
+            await notificationService.markAllAsRead();
+            setNotifications(prev =>
+                prev.map(n => ({ ...n, read: true }))
+            );
+        } catch (err) {
+            console.error('Failed to mark all as read:', err);
+        }
     }, []);
 
-    const removeNotification = useCallback((notificationId) => {
-        setNotifications(prev =>
-            prev.filter(n => n.id !== notificationId)
-        );
+    const removeNotification = useCallback(async (notificationId) => {
+        try {
+            await notificationService.delete(notificationId);
+            setNotifications(prev =>
+                prev.filter(n => n.id !== notificationId)
+            );
+        } catch (err) {
+            console.error('Failed to delete notification:', err);
+        }
     }, []);
 
-    const clearAll = useCallback(() => {
+    const clearAll = useCallback(async () => {
+        // For now, just clear locally since bulk delete might not exist
         setNotifications([]);
     }, []);
 
@@ -85,6 +119,7 @@ export const NotificationProvider = ({ children }) => {
             notifications,
             unreadCount,
             isOpen,
+            loading,
             addNotification,
             markAsRead,
             markAllAsRead,
@@ -92,7 +127,8 @@ export const NotificationProvider = ({ children }) => {
             clearAll,
             toggleNotifications,
             openNotifications,
-            closeNotifications
+            closeNotifications,
+            fetchNotifications
         }}>
             {children}
         </NotificationContext.Provider>

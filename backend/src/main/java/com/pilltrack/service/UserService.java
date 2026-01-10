@@ -151,18 +151,12 @@ public class UserService {
     }
     
     private UserResponse mapToResponse(User user) {
-        // Parse name into firstName and lastName
-        String[] nameParts = user.getName() != null ? user.getName().split(" ", 2) : new String[]{"", ""};
-        String firstName = nameParts.length > 0 ? nameParts[0] : "";
-        String lastName = nameParts.length > 1 ? nameParts[1] : "";
-        
         // Single role
         List<String> roles = Collections.singletonList(user.getRole().getName().name());
         
         return UserResponse.builder()
                 .id(user.getId())
-                .firstName(firstName)
-                .lastName(lastName)
+                .name(user.getName())
                 .email(user.getEmail())
                 .phone(user.getPhone())
                 .dateOfBirth(null) // User entity doesn't have dateOfBirth

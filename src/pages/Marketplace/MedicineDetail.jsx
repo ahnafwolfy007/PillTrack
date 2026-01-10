@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/Card';
@@ -7,59 +7,125 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Ta
 import { 
     ArrowLeft, ShoppingCart, Heart, Share2, Star, 
     MapPin, Truck, Shield, Package, Plus, Minus,
-    AlertTriangle, FileText, Info, ChevronRight
+    AlertTriangle, FileText, Info, ChevronRight, Loader2
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { cn } from '../../utils/cn';
+import { shopMedicineService, medicineService } from '../../services/api';
 
 const MedicineDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { addItem } = useCart();
+    const { addItem, items: cartItems } = useCart();
     const [quantity, setQuantity] = useState(1);
     const [selectedShop, setSelectedShop] = useState(0);
     const [isWishlisted, setIsWishlisted] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [product, setProduct] = useState(null);
+    const [shops, setShops] = useState([]);
+    const [relatedProducts, setRelatedProducts] = useState([]);
 
-    // Mock product data
-    const product = {
-        id: id || '1',
-        name: 'Amoxicillin 500mg',
-        genericName: 'Amoxicillin Trihydrate',
-        brand: 'PharmaCare',
-        type: 'Antibiotic',
-        rating: 4.5,
-        reviews: 128,
-        image: 'https://pngimg.com/uploads/pill/pill_PNG17239.png',
-        description: 'Amoxicillin is a penicillin antibiotic that fights bacteria. It is used to treat many different types of infection caused by bacteria, such as tonsillitis, bronchitis, pneumonia, and infections of the ear, nose, throat, skin, or urinary tract.',
-        dosage: 'Adults: 250-500mg every 8 hours or 500-875mg every 12 hours. Children: Dosage based on body weight.',
-        sideEffects: ['Nausea', 'Vomiting', 'Diarrhea', 'Stomach pain', 'Skin rash', 'Allergic reactions (rare)'],
-        warnings: ['Tell your doctor if you are allergic to penicillin', 'Complete the full course of treatment', 'Take with or without food'],
-        requiresPrescription: true
+    useEffect(() => {
+        fetchProductData();
+    }, [id]);
+
+    const fetchProductData = async () => {
+        setLoading(true);
+        try {
+            // Fetch the shop medicine details
+            const shopMedicineData = await shopMedicineService.getById(id);
+            
+            if (shopMedicineData) {
+                const productData = {
+                    id: shopMedicineData.id,
+                    name: shopMedicineData.medicineName || shopMedicineData.medicine?.brandName || 'Medicine',
+                    genericName: shopMedicineData.medicine?.genericName || '',
+                    brand: shopMedicineData.medicine?.manufacturer || 'Brand',
+                    type: shopMedicineData.categoryName || shopMedicineData.medicine?.categoryName || 'General',
+                    rating: 4.5,
+                    reviews: Math.floor(Math.random() * 200) + 50,
+                    image: shopMedicineData.imageUrl || shopMedicineData.medicine?.imageUrl || 'https://pngimg.com/uploads/pill/pill_PNG17239.png',
+                    description: shopMedicineData.medicine?.description || shopMedicineData.description || 'No description available.',
+                    dosage: shopMedicineData.medicine?.dosageForm || 'Follow prescribed dosage',
+                    sideEffects: shopMedicineData.medicine?.sideEffects?.split(',') || ['Consult your doctor'],
+                    warnings: shopMedicineData.medicine?.warnings?.split(',') || ['Read package insert carefully'],
+                    requiresPrescription: shopMedicineData.requiresPrescription || false
+                };
+                setProduct(productData);
+
+                // Set shop data
+                setShops([{
+                    id: shopMedicineData.shopId || shopMedicineData.shop?.id,
+                    name: shopMedicineData.shopName || shopMedicineData.shop?.name || 'Pharmacy',
+                    price: shopMedicineData.price?.toFixed(2) || '0.00',
+                    stock: shopMedicineData.stockQuantity || 0,
+                    rating: 4.5,
+                    delivery: '2-3 days',
+                    verified: true
+                }]);
+
+                // Try to fetch other shops selling this medicine
+                if (shopMedicineData.medicineId) {
+                    try {
+                        const otherShops = await shopMedicineService.getShopsSelling(shopMedicineData.medicineId);
+                        if (otherShops && Array.isArray(otherShops) && otherShops.length > 0) {
+                            setShops(otherShops.map(s => ({
+                                id: s.id,
+                                name: s.shopName || s.shop?.name || 'Pharmacy',
+                                price: s.price?.toFixed(2) || '0.00',
+                                stock: s.stockQuantity || 0,
+                                rating: 4.2 + Math.random() * 0.6,
+                                delivery: '2-3 days',
+                                verified: true
+                            })));
+                        }
+                    } catch (e) {
+                        console.log('Could not fetch other shops');
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch product:', error);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const shops = [
-        { id: 1, name: 'MediPharm Plus', price: '12.99', stock: 50, rating: 4.8, delivery: '1-2 days', verified: true },
-        { id: 2, name: 'HealthFirst Pharmacy', price: '13.50', stock: 30, rating: 4.6, delivery: '2-3 days', verified: true },
-        { id: 3, name: 'QuickMeds Store', price: '11.99', stock: 15, rating: 4.4, delivery: '3-4 days', verified: false }
-    ];
-
-    const relatedProducts = [
-        { id: 2, name: 'Azithromycin 250mg', brand: 'ZPack', price: '15.99', image: 'https://pngimg.com/uploads/pill/pill_PNG17260.png' },
-        { id: 3, name: 'Ciprofloxacin 500mg', brand: 'Cipro', price: '18.50', image: 'https://pngimg.com/uploads/pill/pill_PNG17235.png' },
-        { id: 4, name: 'Doxycycline 100mg', brand: 'Vibramycin', price: '14.25', image: 'https://pngimg.com/uploads/pill/pill_PNG17243.png' }
-    ];
+    const cartItemCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
     const handleAddToCart = () => {
+        if (!product || shops.length === 0) return;
+        
         addItem({
             id: product.id,
+            shopMedicineId: product.id,
             name: product.name,
-            brand: product.brand,
+            brand: shops[selectedShop].name,
             price: shops[selectedShop].price,
             image: product.image,
-            shop: shops[selectedShop].name
+            shop: shops[selectedShop].name,
+            maxStock: shops[selectedShop].stock
         }, quantity);
-        // Could show a toast here
     };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (!product) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <div className="text-center">
+                    <h2 className="text-xl font-semibold text-slate-800 mb-2">Product not found</h2>
+                    <Button onClick={() => navigate('/marketplace')}>Back to Marketplace</Button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-slate-50">
@@ -87,7 +153,11 @@ const MedicineDetail = () => {
                         <Link to="/cart">
                             <Button size="icon" variant="outline" className="relative">
                                 <ShoppingCart size={20} />
-                                <span className="absolute -top-2 -right-2 w-5 h-5 bg-primary text-white text-xs flex items-center justify-center rounded-full">2</span>
+                                {cartItemCount > 0 && (
+                                    <span className="absolute -top-2 -right-2 w-5 h-5 bg-primary text-white text-xs flex items-center justify-center rounded-full">
+                                        {cartItemCount}
+                                    </span>
+                                )}
                             </Button>
                         </Link>
                     </div>

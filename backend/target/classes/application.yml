@@ -77,8 +77,7 @@ spring:
 # Server Configuration
 server:
   port: 8080
-  servlet:
-    context-path: /api
+  # Note: Controllers already include /api/v1 in their paths, so no context-path needed
 
 # Application-level Configuration
 app:

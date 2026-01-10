@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
-import { Search, Filter, ShoppingCart, Plus, Star, MapPin, Tag, Heart } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, ShoppingCart, Plus, Star, MapPin, Tag, Heart, Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent, CardFooter } from '../../components/ui/Card';
 import { cn } from '../../utils/cn';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useCart } from '../../context';
+import { useCart, useAuth } from '../../context';
+import { shopMedicineService, categoryService } from '../../services/api';
 
 const MedicineCard = ({ id, name, brand, price, rating, type, image, onAddToCart }) => {
     const navigate = useNavigate();
@@ -78,19 +79,51 @@ const MedicineCard = ({ id, name, brand, price, rating, type, image, onAddToCart
 
 const Marketplace = () => {
     const { addItem, items } = useCart();
+    const { isAuthenticated } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategories, setSelectedCategories] = useState([]);
+    const [products, setProducts] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [loading, setLoading] = useState(true);
     
-    const products = [
-        { id: 1, name: "Amoxicillin 500mg", brand: "PharmaCare", price: "12.99", rating: 4.5, type: "Antibiotic", image: "https://pngimg.com/uploads/pill/pill_PNG17239.png" },
-        { id: 2, name: "Vitamin D3 1000IU", brand: "NatureMade", price: "9.50", rating: 5, type: "Supplement", image: "https://pngimg.com/uploads/pill/pill_PNG17260.png" },
-        { id: 3, name: "Ibuprofen 200mg", brand: "Advil", price: "8.25", rating: 4, type: "Pain Relief", image: "https://pngimg.com/uploads/pill/pill_PNG17235.png" },
-        { id: 4, name: "Cetirizine 10mg", brand: "Zyrtec", price: "15.00", rating: 4.5, type: "Allergy", image: "https://pngimg.com/uploads/pill/pill_PNG17243.png" },
-        { id: 5, name: "Omega-3 Fish Oil", brand: "Nordic", price: "22.99", rating: 5, type: "Supplement", image: "https://pngimg.com/uploads/pill/pill_PNG17255.png" },
-        { id: 6, name: "Metformin 500mg", brand: "Glucophage", price: "18.50", rating: 4, type: "Diabetes", image: "https://pngimg.com/uploads/pill/pill_PNG17242.png" }
-    ];
+    useEffect(() => {
+        fetchData();
+    }, []);
     
-    const categories = ['Antibiotics', 'Supplements', 'Pain Relief', 'Allergy', 'Diabetes', 'Cardio'];
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const [productsData, categoriesData] = await Promise.all([
+                shopMedicineService.getInStock(0, 50).catch(() => ({ content: [] })),
+                categoryService.getAll().catch(() => [])
+            ]);
+            
+            // Map shop medicine data to product format
+            const mappedProducts = (productsData?.content || []).map(item => ({
+                id: item.id,
+                name: item.medicineName || item.medicine?.brandName || 'Medicine',
+                brand: item.shopName || item.shop?.name || 'Unknown Shop',
+                price: item.price?.toFixed(2) || '0.00',
+                rating: 4 + Math.random(), // Mock rating since backend may not have it
+                type: item.categoryName || item.medicine?.categoryName || 'General',
+                image: item.imageUrl || item.medicine?.imageUrl || 'https://pngimg.com/uploads/pill/pill_PNG17239.png',
+                stockQuantity: item.stockQuantity || 0,
+                shopId: item.shopId || item.shop?.id
+            }));
+            
+            setProducts(mappedProducts);
+            
+            if (Array.isArray(categoriesData) && categoriesData.length > 0) {
+                setCategories(categoriesData.map(c => c.name));
+            } else {
+                setCategories(['Antibiotics', 'Supplements', 'Pain Relief', 'Allergy', 'Diabetes', 'Cardio']);
+            }
+        } catch (error) {
+            console.error('Failed to fetch marketplace data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
     
     const toggleCategory = (category) => {
         setSelectedCategories(prev => 
@@ -109,6 +142,14 @@ const Marketplace = () => {
     });
     
     const cartItemCount = items.reduce((acc, item) => acc + item.quantity, 0);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-slate-50/50 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-slate-50/50">
@@ -131,9 +172,15 @@ const Marketplace = () => {
                         />
                     </div>
                     <div className="flex items-center gap-4">
-                        <Link to="/auth">
-                            <Button variant="ghost">Sign In</Button>
-                        </Link>
+                        {isAuthenticated ? (
+                            <Link to="/dashboard">
+                                <Button variant="ghost">Dashboard</Button>
+                            </Link>
+                        ) : (
+                            <Link to="/auth">
+                                <Button variant="ghost">Sign In</Button>
+                            </Link>
+                        )}
                         <Link to="/cart">
                             <Button size="icon" variant="outline" className="relative">
                                 <ShoppingCart size={20} />

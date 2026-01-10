@@ -10,10 +10,17 @@ import { ArrowLeft, User, Store, Shield, Check, AlertCircle } from 'lucide-react
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context';
 
+// Map frontend roles to backend RoleType enum
+const roleMapping = {
+    'patient': 'USER',
+    'shop': 'SHOP_OWNER',
+    'admin': 'ADMIN'
+};
+
 const Auth = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { login, register, isAuthenticated } = useAuth();
+    const { login, register, isAuthenticated, user } = useAuth();
     const mode = searchParams.get('mode') === 'register' ? 'register' : 'login';
     const [activeTab, setActiveTab] = useState(mode);
     const [role, setRole] = useState('patient');
@@ -21,17 +28,26 @@ const Auth = () => {
     const [error, setError] = useState('');
 
     // Form states
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [phone, setPhone] = useState('');
     const [passwordStrength, setPasswordStrength] = useState(0);
     
     // Redirect if already authenticated
     useEffect(() => {
-        if (isAuthenticated) {
-            navigate('/dashboard');
+        if (isAuthenticated && user) {
+            // Redirect based on role
+            if (user.roles?.includes('ROLE_ADMIN') || user.roles?.includes('ADMIN')) {
+                navigate('/admin');
+            } else if (user.roles?.includes('ROLE_SHOP_OWNER') || user.roles?.includes('SHOP_OWNER')) {
+                navigate('/shop/dashboard');
+            } else {
+                navigate('/dashboard');
+            }
         }
-    }, [isAuthenticated, navigate]);
+    }, [isAuthenticated, user, navigate]);
 
     useEffect(() => {
         setActiveTab(mode);
@@ -56,23 +72,46 @@ const Auth = () => {
         
         try {
             if (activeTab === 'login') {
-                await login(email, password);
-                navigate('/dashboard');
+                const result = await login(email, password);
+                if (!result.success) {
+                    setError(result.error || 'Login failed');
+                    setIsLoading(false);
+                    return;
+                }
+                // Redirect will happen via useEffect when isAuthenticated changes
             } else {
                 if (password !== confirmPassword) {
                     setError('Passwords do not match');
                     setIsLoading(false);
                     return;
                 }
-                await register(email, password, role);
-                // Redirect based on role
-                if (role === 'shop') {
-                    navigate('/shop/dashboard');
-                } else if (role === 'admin') {
-                    navigate('/admin');
-                } else {
-                    navigate('/dashboard');
+                if (password.length < 6) {
+                    setError('Password must be at least 6 characters');
+                    setIsLoading(false);
+                    return;
                 }
+                if (!name.trim()) {
+                    setError('Name is required');
+                    setIsLoading(false);
+                    return;
+                }
+                
+                // Build registration data matching backend RegisterRequest
+                const userData = {
+                    name: name.trim(),
+                    email: email.trim(),
+                    password: password,
+                    phone: phone.trim() || null,
+                    role: roleMapping[role] || 'USER'
+                };
+                
+                const result = await register(userData);
+                if (!result.success) {
+                    setError(result.error || 'Registration failed');
+                    setIsLoading(false);
+                    return;
+                }
+                // Redirect will happen via useEffect when isAuthenticated changes
             }
         } catch (err) {
             setError(err.message || 'An error occurred');
@@ -199,8 +238,16 @@ const Auth = () => {
                                         </div>
 
                                         <div className="space-y-2">
+                                            <Label htmlFor="r-name">Full Name</Label>
+                                            <Input id="r-name" type="text" placeholder="John Doe" required value={name} onChange={e => setName(e.target.value)} />
+                                        </div>
+                                        <div className="space-y-2">
                                             <Label htmlFor="r-email">Email</Label>
                                             <Input id="r-email" type="email" placeholder="name@example.com" required value={email} onChange={e => setEmail(e.target.value)} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="r-phone">Phone (Optional)</Label>
+                                            <Input id="r-phone" type="tel" placeholder="+880-1234567890" value={phone} onChange={e => setPhone(e.target.value)} />
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="r-password">Password</Label>

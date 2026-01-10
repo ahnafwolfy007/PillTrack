@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { 
     Package, Truck, CheckCircle, Clock, ChevronRight, 
     MapPin, CreditCard, Download, RotateCcw, Search,
-    Filter, Eye, X
+    Filter, Eye, X, Loader2, AlertCircle
 } from 'lucide-react';
 import { Input } from '../../components/ui/Input';
 import { cn } from '../../utils/cn';
 import { Link } from 'react-router-dom';
+import { orderService } from '../../services/api';
 
 const OrderStatusBadge = ({ status }) => {
     const statusStyles = {
@@ -143,63 +144,75 @@ const OrderCard = ({ order, onViewDetails }) => {
 const Orders = () => {
     const [filter, setFilter] = useState('all');
     const [selectedOrder, setSelectedOrder] = useState(null);
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
 
-    const orders = [
-        {
-            id: '12345',
-            date: 'January 8, 2026',
-            status: 'shipped',
-            estimatedDelivery: 'Jan 12, 2026',
-            total: '45.99',
-            items: [
-                { name: 'Amoxicillin 500mg', quantity: 2, price: '12.99' },
-                { name: 'Vitamin D3 1000IU', quantity: 1, price: '9.50' }
-            ],
-            address: '123 Main St, New York, NY 10001',
-            payment: '**** **** **** 4242'
-        },
-        {
-            id: '12344',
-            date: 'January 5, 2026',
-            status: 'delivered',
-            total: '28.50',
-            items: [
-                { name: 'Ibuprofen 200mg', quantity: 1, price: '8.25' },
-                { name: 'Cetirizine 10mg', quantity: 1, price: '15.00' }
-            ],
-            address: '123 Main St, New York, NY 10001',
-            payment: '**** **** **** 4242'
-        },
-        {
-            id: '12343',
-            date: 'December 28, 2025',
-            status: 'delivered',
-            total: '67.48',
-            items: [
-                { name: 'Omega-3 Fish Oil', quantity: 2, price: '22.99' },
-                { name: 'Metformin 500mg', quantity: 1, price: '18.50' }
-            ],
-            address: '123 Main St, New York, NY 10001',
-            payment: '**** **** **** 4242'
-        },
-        {
-            id: '12342',
-            date: 'December 20, 2025',
-            status: 'processing',
-            estimatedDelivery: 'Jan 15, 2026',
-            total: '35.00',
-            items: [
-                { name: 'Lisinopril 10mg', quantity: 1, price: '25.00' },
-                { name: 'Aspirin 81mg', quantity: 1, price: '10.00' }
-            ],
-            address: '123 Main St, New York, NY 10001',
-            payment: '**** **** **** 4242'
+    useEffect(() => {
+        fetchOrders();
+    }, []);
+
+    const fetchOrders = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const response = await orderService.getAll();
+            if (response.success && response.data) {
+                const ordersData = Array.isArray(response.data) 
+                    ? response.data 
+                    : response.data.content || [];
+                
+                setOrders(ordersData.map(order => ({
+                    id: order.id,
+                    date: new Date(order.createdAt).toLocaleDateString('en-US', {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric'
+                    }),
+                    status: order.status?.toLowerCase() || 'pending',
+                    estimatedDelivery: order.estimatedDelivery 
+                        ? new Date(order.estimatedDelivery).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                        : null,
+                    total: order.totalAmount?.toFixed(2) || '0.00',
+                    items: order.items?.map(item => ({
+                        name: item.medicineName || 'Medicine',
+                        quantity: item.quantity,
+                        price: item.unitPrice?.toFixed(2) || '0.00'
+                    })) || [],
+                    address: order.shippingAddress || 'Not specified',
+                    payment: order.paymentMethod || 'N/A',
+                    notes: order.notes
+                })));
+            }
+        } catch (err) {
+            console.error('Failed to fetch orders:', err);
+            setError('Failed to load orders. Please try again.');
+        } finally {
+            setLoading(false);
         }
-    ];
+    };
 
-    const filteredOrders = filter === 'all' 
-        ? orders 
-        : orders.filter(o => o.status === filter);
+    const handleReorder = async (order) => {
+        // Could implement reorder functionality
+        console.log('Reorder:', order);
+    };
+
+    const filteredOrders = orders
+        .filter(o => filter === 'all' || o.status === filter)
+        .filter(o => 
+            searchTerm === '' || 
+            o.id.toString().includes(searchTerm) ||
+            o.items.some(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -220,10 +233,15 @@ const Orders = () => {
             <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
-                    <Input className="pl-10 bg-white" placeholder="Search orders by ID or product..." />
+                    <Input 
+                        className="pl-10 bg-white" 
+                        placeholder="Search orders by ID or product..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
-                    {['all', 'pending', 'processing', 'shipped', 'delivered'].map((status) => (
+                    {['all', 'pending', 'processing', 'shipped', 'delivered', 'cancelled'].map((status) => (
                         <Button
                             key={status}
                             variant={filter === status ? 'default' : 'outline'}
@@ -236,6 +254,16 @@ const Orders = () => {
                     ))}
                 </div>
             </div>
+
+            {error && (
+                <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                    <AlertCircle size={18} />
+                    <span>{error}</span>
+                    <Button variant="ghost" size="sm" onClick={fetchOrders} className="ml-auto">
+                        Try Again
+                    </Button>
+                </div>
+            )}
 
             {/* Orders List */}
             <div className="space-y-4">

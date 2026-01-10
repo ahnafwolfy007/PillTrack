@@ -1,15 +1,16 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Search, Pill, AlertTriangle, Clock, Beaker, Heart, 
     ChevronRight, X, BookOpen, Shield, Activity, Droplets,
-    Package, FileText, ArrowLeft, ExternalLink, Star, Info
+    Package, FileText, ArrowLeft, ExternalLink, Star, Info, Loader2
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { cn } from '../../utils/cn';
+import { medicineService, categoryService } from '../../services/api';
 
 // Comprehensive medicine database
 const medicineDatabase = [
@@ -433,10 +434,13 @@ const MedicineDetailModal = ({ medicine, onClose }) => {
     const tabs = [
         { id: 'overview', label: 'Overview', icon: BookOpen },
         { id: 'usage', label: 'Usage & Dosage', icon: Pill },
-        { id: 'sideEffects', label: 'Side Effects', icon: AlertTriangle },
-        { id: 'interactions', label: 'Interactions', icon: Activity },
         { id: 'safety', label: 'Safety Info', icon: Shield }
     ];
+
+    // Parse indications if it's a string
+    const indications = typeof medicine.indications === 'string' 
+        ? medicine.indications.split(/[,;]/).map(s => s.trim()).filter(Boolean)
+        : Array.isArray(medicine.indications) ? medicine.indications : [];
     
     return (
         <motion.div
@@ -464,21 +468,25 @@ const MedicineDetailModal = ({ medicine, onClose }) => {
                     
                     <div className="flex items-start gap-6">
                         <div className="w-24 h-24 bg-white/20 rounded-xl p-4 flex items-center justify-center">
-                            <img src={medicine.image} alt={medicine.name} className="w-full h-full object-contain" />
+                            {medicine.imageUrl ? (
+                                <img src={medicine.imageUrl} alt={medicine.brandName || medicine.name} className="w-full h-full object-contain" />
+                            ) : (
+                                <Pill size={40} className="text-white/80" />
+                            )}
                         </div>
                         <div className="flex-1">
                             <span className="px-2 py-1 bg-white/20 rounded text-xs font-medium uppercase tracking-wider">
-                                {medicine.category}
+                                {medicine.categoryName || medicine.form || 'Medicine'}
                             </span>
-                            <h2 className="text-3xl font-bold mt-2">{medicine.name}</h2>
+                            <h2 className="text-3xl font-bold mt-2">{medicine.brandName || medicine.name}</h2>
                             <p className="text-blue-100 mt-1">{medicine.genericName}</p>
-                            <div className="flex flex-wrap gap-2 mt-3">
-                                {medicine.brandNames.map((brand, i) => (
-                                    <span key={i} className="px-2 py-0.5 bg-white/10 rounded text-xs">
-                                        {brand}
+                            {medicine.manufacturerName && (
+                                <div className="flex flex-wrap gap-2 mt-3">
+                                    <span className="px-2 py-0.5 bg-white/10 rounded text-xs">
+                                        {medicine.manufacturerName}
                                     </span>
-                                ))}
-                            </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -508,191 +516,110 @@ const MedicineDetailModal = ({ medicine, onClose }) => {
                 <div className="p-6 overflow-y-auto max-h-[50vh]">
                     {activeTab === 'overview' && (
                         <div className="space-y-6">
-                            <div>
-                                <h3 className="font-semibold text-slate-800 mb-2">Description</h3>
-                                <p className="text-slate-600 leading-relaxed">{medicine.description}</p>
-                            </div>
+                            {medicine.description && (
+                                <div>
+                                    <h3 className="font-semibold text-slate-800 mb-2">Description</h3>
+                                    <p className="text-slate-600 leading-relaxed">{medicine.description}</p>
+                                </div>
+                            )}
                             
-                            <div>
-                                <h3 className="font-semibold text-slate-800 mb-2">How It Works</h3>
-                                <p className="text-slate-600 leading-relaxed">{medicine.mechanism}</p>
-                            </div>
+                            {indications.length > 0 && (
+                                <div>
+                                    <h3 className="font-semibold text-slate-800 mb-2">Uses / Indications</h3>
+                                    <ul className="list-disc list-inside text-slate-600 space-y-1">
+                                        {indications.slice(0, 10).map((indication, i) => (
+                                            <li key={i}>{indication}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
                             
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="bg-slate-50 rounded-lg p-4">
-                                    <Clock size={18} className="text-primary mb-2" />
-                                    <p className="text-xs text-slate-500">Onset</p>
-                                    <p className="font-medium text-slate-800">{medicine.onset}</p>
-                                </div>
-                                <div className="bg-slate-50 rounded-lg p-4">
-                                    <Activity size={18} className="text-primary mb-2" />
-                                    <p className="text-xs text-slate-500">Duration</p>
-                                    <p className="font-medium text-slate-800">{medicine.duration}</p>
-                                </div>
-                                <div className="bg-slate-50 rounded-lg p-4">
-                                    <Droplets size={18} className="text-primary mb-2" />
-                                    <p className="text-xs text-slate-500">Half-Life</p>
-                                    <p className="font-medium text-slate-800">{medicine.halfLife}</p>
-                                </div>
-                                <div className="bg-slate-50 rounded-lg p-4">
-                                    <Package size={18} className="text-primary mb-2" />
-                                    <p className="text-xs text-slate-500">Type</p>
-                                    <p className="font-medium text-slate-800">{medicine.type}</p>
-                                </div>
-                            </div>
-                            
-                            <div>
-                                <h3 className="font-semibold text-slate-800 mb-2">Available Forms</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {medicine.dosageForms.map((form, i) => (
-                                        <span key={i} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
-                                            {form}
-                                        </span>
-                                    ))}
-                                </div>
+                                {medicine.strength && (
+                                    <div className="bg-slate-50 rounded-lg p-4">
+                                        <Package size={18} className="text-primary mb-2" />
+                                        <p className="text-xs text-slate-500">Strength</p>
+                                        <p className="font-medium text-slate-800">{medicine.strength}</p>
+                                    </div>
+                                )}
+                                {medicine.form && (
+                                    <div className="bg-slate-50 rounded-lg p-4">
+                                        <Pill size={18} className="text-primary mb-2" />
+                                        <p className="text-xs text-slate-500">Form</p>
+                                        <p className="font-medium text-slate-800">{medicine.form}</p>
+                                    </div>
+                                )}
+                                {medicine.isOtc !== undefined && (
+                                    <div className="bg-slate-50 rounded-lg p-4">
+                                        <Shield size={18} className="text-primary mb-2" />
+                                        <p className="text-xs text-slate-500">Type</p>
+                                        <p className="font-medium text-slate-800">{medicine.isOtc ? 'OTC' : 'Prescription'}</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
                     
                     {activeTab === 'usage' && (
                         <div className="space-y-6">
-                            <div>
-                                <h3 className="font-semibold text-slate-800 mb-2">Common Uses</h3>
-                                <ul className="space-y-2">
-                                    {medicine.uses.map((use, i) => (
-                                        <li key={i} className="flex items-start gap-2 text-slate-600">
-                                            <ChevronRight size={16} className="text-primary mt-1 shrink-0" />
-                                            {use}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                            
-                            <div className="bg-blue-50 rounded-xl p-4">
-                                <h3 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
-                                    <Pill size={18} /> Recommended Dosage
-                                </h3>
-                                <p className="text-blue-700">{medicine.commonDosage}</p>
-                            </div>
-                            
-                            <div>
-                                <h3 className="font-semibold text-slate-800 mb-2">Active Ingredients</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {medicine.activeIngredients.map((ing, i) => (
-                                        <span key={i} className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm font-medium">
-                                            {ing}
-                                        </span>
-                                    ))}
+                            {medicine.strength && (
+                                <div>
+                                    <h3 className="font-semibold text-slate-800 mb-2">Dosage Information</h3>
+                                    <p className="text-slate-600 leading-relaxed">
+                                        Available in: {medicine.strength}
+                                    </p>
                                 </div>
-                            </div>
+                            )}
                             
-                            <div>
-                                <h3 className="font-semibold text-slate-800 mb-2">Storage Instructions</h3>
-                                <p className="text-slate-600">{medicine.storage}</p>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {activeTab === 'sideEffects' && (
-                        <div className="space-y-6">
-                            <div>
-                                <h3 className="font-semibold text-slate-800 mb-3">Common Side Effects</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                    {medicine.sideEffects.common.map((effect, i) => (
-                                        <div key={i} className="flex items-center gap-2 p-2 bg-yellow-50 rounded-lg text-sm text-yellow-800">
-                                            <div className="w-2 h-2 bg-yellow-400 rounded-full" />
-                                            {effect}
-                                        </div>
-                                    ))}
+                            {medicine.form && (
+                                <div>
+                                    <h3 className="font-semibold text-slate-800 mb-2">Form</h3>
+                                    <p className="text-slate-600">{medicine.form}</p>
                                 </div>
-                            </div>
+                            )}
                             
-                            <div>
-                                <h3 className="font-semibold text-red-700 mb-3 flex items-center gap-2">
-                                    <AlertTriangle size={18} /> Serious Side Effects
-                                </h3>
-                                <div className="bg-red-50 rounded-xl p-4 space-y-2">
-                                    {medicine.sideEffects.serious.map((effect, i) => (
-                                        <div key={i} className="flex items-center gap-2 text-red-700">
-                                            <AlertTriangle size={14} />
-                                            {effect}
-                                        </div>
-                                    ))}
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                                <div className="flex gap-3">
+                                    <AlertTriangle size={20} className="text-amber-500 shrink-0 mt-0.5" />
+                                    <div>
+                                        <h4 className="font-medium text-amber-800 mb-1">Important</h4>
+                                        <p className="text-sm text-amber-700">
+                                            Always follow your healthcare provider's instructions for dosage and usage.
+                                            Do not modify your dosage without consulting a doctor.
+                                        </p>
+                                    </div>
                                 </div>
-                                <p className="text-sm text-red-600 mt-2">
-                                    Seek immediate medical attention if you experience any serious side effects.
-                                </p>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {activeTab === 'interactions' && (
-                        <div className="space-y-6">
-                            <div>
-                                <h3 className="font-semibold text-slate-800 mb-3">Drug Interactions</h3>
-                                <div className="space-y-3">
-                                    {medicine.interactions.map((interaction, i) => (
-                                        <div key={i} className="border border-slate-200 rounded-lg p-4">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-medium text-slate-800">{interaction.drug}</span>
-                                                <Activity size={14} className="text-orange-500" />
-                                            </div>
-                                            <p className="text-sm text-slate-600">{interaction.effect}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            
-                            <div className="bg-amber-50 rounded-xl p-4">
-                                <h3 className="font-semibold text-amber-800 mb-2 flex items-center gap-2">
-                                    <Info size={18} /> Important Note
-                                </h3>
-                                <p className="text-amber-700 text-sm">
-                                    Always inform your doctor about all medications, supplements, and herbal products you are taking before starting {medicine.name}.
-                                </p>
                             </div>
                         </div>
                     )}
                     
                     {activeTab === 'safety' && (
                         <div className="space-y-6">
-                            <div>
-                                <h3 className="font-semibold text-slate-800 mb-3">Contraindications</h3>
-                                <div className="bg-red-50 rounded-xl p-4 space-y-2">
-                                    {medicine.contraindications.map((contra, i) => (
-                                        <div key={i} className="flex items-start gap-2 text-red-700">
-                                            <X size={16} className="mt-0.5 shrink-0" />
-                                            {contra}
-                                        </div>
-                                    ))}
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <div className="flex gap-3">
+                                    <Info size={20} className="text-blue-500 shrink-0 mt-0.5" />
+                                    <div>
+                                        <h4 className="font-medium text-blue-800 mb-1">General Safety Information</h4>
+                                        <ul className="text-sm text-blue-700 space-y-1">
+                                            <li>• Store in a cool, dry place away from sunlight</li>
+                                            <li>• Keep out of reach of children</li>
+                                            <li>• Check expiration date before use</li>
+                                            <li>• Consult a healthcare provider before taking with other medications</li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
                             
-                            <div>
-                                <h3 className="font-semibold text-slate-800 mb-3">Warnings & Precautions</h3>
-                                <ul className="space-y-2">
-                                    {medicine.warnings.map((warning, i) => (
-                                        <li key={i} className="flex items-start gap-2 text-slate-600">
-                                            <AlertTriangle size={16} className="text-amber-500 mt-0.5 shrink-0" />
-                                            {warning}
-                                        </li>
-                                    ))}
+                            <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+                                <h4 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
+                                    <AlertTriangle size={16} /> Important Warnings
+                                </h4>
+                                <ul className="text-sm text-red-700 space-y-1">
+                                    <li>• Do not exceed recommended dose</li>
+                                    <li>• Seek immediate medical attention if you experience severe side effects</li>
+                                    <li>• Inform your doctor about all medications you are taking</li>
+                                    <li>• Pregnant or nursing mothers should consult a doctor before use</li>
                                 </ul>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="border border-pink-200 rounded-xl p-4 bg-pink-50">
-                                    <h4 className="font-semibold text-pink-800 mb-1 flex items-center gap-2">
-                                        <Heart size={16} /> Pregnancy
-                                    </h4>
-                                    <p className="text-sm text-pink-700">{medicine.pregnancy}</p>
-                                </div>
-                                <div className="border border-purple-200 rounded-xl p-4 bg-purple-50">
-                                    <h4 className="font-semibold text-purple-800 mb-1 flex items-center gap-2">
-                                        <Droplets size={16} /> Breastfeeding
-                                    </h4>
-                                    <p className="text-sm text-purple-700">{medicine.breastfeeding}</p>
-                                </div>
                             </div>
                         </div>
                     )}
@@ -706,18 +633,95 @@ const MedBase = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [selectedMedicine, setSelectedMedicine] = useState(null);
-    
+    const [medicines, setMedicines] = useState([]);
+    const [categories, setCategories] = useState(['All']);
+    const [loading, setLoading] = useState(true);
+    const [searching, setSearching] = useState(false);
+    const [page, setPage] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+
+    useEffect(() => {
+        fetchInitialData();
+    }, []);
+
+    const fetchInitialData = async () => {
+        try {
+            setLoading(true);
+            const [medicinesData, categoriesData] = await Promise.all([
+                medicineService.getAll(0, 20),
+                categoryService.getAll().catch(() => [])
+            ]);
+            
+            // Handle medicines data
+            if (medicinesData?.content) {
+                setMedicines(medicinesData.content);
+                setTotalPages(medicinesData.totalPages || 1);
+            } else if (Array.isArray(medicinesData)) {
+                setMedicines(medicinesData);
+            }
+            
+            // Handle categories data
+            if (Array.isArray(categoriesData) && categoriesData.length > 0) {
+                setCategories(['All', ...categoriesData.map(c => c.name)]);
+            }
+        } catch (error) {
+            console.error('Failed to fetch medicines:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSearch = async (query) => {
+        setSearchQuery(query);
+        if (query.length < 2) {
+            fetchInitialData();
+            return;
+        }
+        try {
+            setSearching(true);
+            const data = await medicineService.search(query, 0, 50);
+            if (data?.content) {
+                setMedicines(data.content);
+            } else if (Array.isArray(data)) {
+                setMedicines(data);
+            }
+        } catch (error) {
+            console.error('Search failed:', error);
+        } finally {
+            setSearching(false);
+        }
+    };
+
+    const loadMoreMedicines = async () => {
+        try {
+            const nextPage = page + 1;
+            const data = await medicineService.getAll(nextPage, 20);
+            if (data?.content) {
+                setMedicines(prev => [...prev, ...data.content]);
+                setPage(nextPage);
+            }
+        } catch (error) {
+            console.error('Failed to load more:', error);
+        }
+    };
+
+    // Filter by category locally
     const filteredMedicines = useMemo(() => {
-        return medicineDatabase.filter(med => {
-            const matchesSearch = 
-                med.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                med.genericName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                med.brandNames.some(b => b.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                med.uses.some(u => u.toLowerCase().includes(searchQuery.toLowerCase()));
-            const matchesCategory = selectedCategory === 'All' || med.category === selectedCategory;
-            return matchesSearch && matchesCategory;
+        return medicines.filter(med => {
+            const matchesCategory = selectedCategory === 'All' || 
+                med.category === selectedCategory ||
+                med.categoryName === selectedCategory;
+            return matchesCategory;
         });
-    }, [searchQuery, selectedCategory]);
+    }, [medicines, selectedCategory]);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
     
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
@@ -763,9 +767,12 @@ const MedBase = () => {
                             type="text"
                             placeholder="Search by medicine name, brand, or condition..."
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onChange={(e) => handleSearch(e.target.value)}
                             className="pl-12 h-14 text-lg bg-white border-slate-200 shadow-lg shadow-slate-200/50 rounded-xl"
                         />
+                        {searching && (
+                            <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary animate-spin" />
+                        )}
                     </div>
                 </motion.div>
             </section>
@@ -814,42 +821,47 @@ const MedBase = () => {
                         </Button>
                     </motion.div>
                 ) : (
+                    <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {filteredMedicines.map((medicine, i) => (
                             <motion.div
                                 key={medicine.id}
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.05 }}
+                                transition={{ delay: Math.min(i * 0.05, 0.5) }}
                             >
                                 <Card 
                                     className="h-full hover:shadow-xl transition-all cursor-pointer group border-slate-100 overflow-hidden"
                                     onClick={() => setSelectedMedicine(medicine)}
                                 >
                                     <div className="h-32 bg-gradient-to-br from-slate-50 to-blue-50 p-4 flex items-center justify-center group-hover:from-blue-50 group-hover:to-primary/10 transition-colors">
-                                        <img 
-                                            src={medicine.image} 
-                                            alt={medicine.name} 
-                                            className="h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform"
-                                        />
+                                        {medicine.imageUrl ? (
+                                            <img 
+                                                src={medicine.imageUrl} 
+                                                alt={medicine.brandName || medicine.name} 
+                                                className="h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform"
+                                            />
+                                        ) : (
+                                            <Pill size={48} className="text-primary/30 group-hover:scale-110 transition-transform" />
+                                        )}
                                     </div>
                                     <CardContent className="p-4">
                                         <span className="text-xs font-semibold text-primary/80 bg-primary/5 px-2 py-0.5 rounded uppercase tracking-wider">
-                                            {medicine.category}
+                                            {medicine.categoryName || medicine.form || 'Medicine'}
                                         </span>
-                                        <h3 className="font-bold text-lg text-slate-800 mt-2 group-hover:text-primary transition-colors">
-                                            {medicine.name}
+                                        <h3 className="font-bold text-lg text-slate-800 mt-2 group-hover:text-primary transition-colors line-clamp-1">
+                                            {medicine.brandName || medicine.name}
                                         </h3>
-                                        <p className="text-xs text-slate-500 mb-2">{medicine.genericName}</p>
-                                        <p className="text-sm text-slate-600 line-clamp-2">{medicine.type}</p>
+                                        <p className="text-xs text-slate-500 mb-2 line-clamp-1">{medicine.genericName}</p>
+                                        <p className="text-sm text-slate-600 line-clamp-2">{medicine.strength || medicine.description || ''}</p>
                                         
                                         <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
                                             <div className="flex items-center gap-1 text-xs text-slate-400">
-                                                <FileText size={12} />
-                                                {medicine.uses.length} uses
+                                                <Package size={12} />
+                                                {medicine.manufacturerName || 'Manufacturer'}
                                             </div>
                                             <span className="text-primary text-sm font-medium flex items-center gap-1 group-hover:gap-2 transition-all">
-                                                View Details <ChevronRight size={14} />
+                                                View <ChevronRight size={14} />
                                             </span>
                                         </div>
                                     </CardContent>
@@ -857,6 +869,16 @@ const MedBase = () => {
                             </motion.div>
                         ))}
                     </div>
+                    
+                    {/* Load More Button */}
+                    {page < totalPages - 1 && searchQuery.length < 2 && (
+                        <div className="text-center mt-8">
+                            <Button variant="outline" onClick={loadMoreMedicines}>
+                                Load More Medicines
+                            </Button>
+                        </div>
+                    )}
+                    </>
                 )}
             </section>
             
