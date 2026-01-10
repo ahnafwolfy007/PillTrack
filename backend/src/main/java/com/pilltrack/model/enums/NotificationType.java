@@ -1,0 +1,18 @@
+package com.pilltrack.model.enums;
+
+public enum NotificationType {
+    MEDICATION_REMINDER,
+    DOSE_LOGGED,
+    LOW_STOCK,
+    ORDER_PLACED,
+    ORDER_CONFIRMED,
+    ORDER_SHIPPED,
+    ORDER_DELIVERED,
+    ORDER_CANCELLED,
+    PAYMENT_SUCCESS,
+    PAYMENT_FAILED,
+    SHOP_VERIFIED,
+    SHOP_REJECTED,
+    NEW_ORDER,
+    SYSTEM_ALERT
+}
