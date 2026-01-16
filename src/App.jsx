@@ -15,6 +15,7 @@ import Cart from './pages/Cart/index';
 import ShopDashboard from './pages/Admin/ShopDashboard';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import MedBase from './pages/MedBase/index';
+import ReminderAlert from './components/common/ReminderAlert';
 
 function App() {
   return (
@@ -22,6 +23,9 @@ function App() {
       <CartProvider>
         <NotificationProvider>
           <Router>
+            {/* Global Reminder Alert */}
+            <ReminderAlert />
+            
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Landing />} />

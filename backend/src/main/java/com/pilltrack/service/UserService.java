@@ -76,6 +76,11 @@ public class UserService {
             throw new ResourceNotFoundException("User not found");
         }
         
+        log.info("Updating profile for user: {} with request: firstName={}, lastName={}, phone={}, address={}, dateOfBirth={}, bloodType={}, allergies={}, emergencyContact={}",
+            user.getEmail(), request.getFirstName(), request.getLastName(), request.getPhone(), 
+            request.getAddress(), request.getDateOfBirth(), request.getBloodType(), 
+            request.getAllergies(), request.getEmergencyContact());
+        
         // Combine firstName and lastName into name
         if (request.getFirstName() != null || request.getLastName() != null) {
             String firstName = request.getFirstName() != null ? request.getFirstName() : "";
@@ -85,6 +90,7 @@ public class UserService {
                 user.setName(fullName);
             }
         }
+        // Allow setting empty values for optional fields
         if (request.getPhone() != null) {
             user.setPhone(request.getPhone());
         }
@@ -100,9 +106,27 @@ public class UserService {
         if (request.getAvatarUrl() != null) {
             user.setProfileImageUrl(request.getAvatarUrl());
         }
+        if (request.getDateOfBirth() != null) {
+            user.setDateOfBirth(request.getDateOfBirth());
+        }
+        // Blood type can only be set once (if not already set)
+        if (request.getBloodType() != null && !request.getBloodType().isEmpty()) {
+            if (user.getBloodType() == null || user.getBloodType().isEmpty()) {
+                user.setBloodType(request.getBloodType());
+                log.info("Setting blood type to: {}", request.getBloodType());
+            } else {
+                log.info("Blood type already set to: {}, ignoring update", user.getBloodType());
+            }
+        }
+        if (request.getAllergies() != null) {
+            user.setAllergies(request.getAllergies());
+        }
+        if (request.getEmergencyContact() != null) {
+            user.setEmergencyContact(request.getEmergencyContact());
+        }
         
         user = userRepository.save(user);
-        log.info("Profile updated for user: {}", user.getEmail());
+        log.info("Profile updated successfully for user: {}", user.getEmail());
         
         return mapToResponse(user);
     }
@@ -159,13 +183,16 @@ public class UserService {
                 .name(user.getName())
                 .email(user.getEmail())
                 .phone(user.getPhone())
-                .dateOfBirth(null) // User entity doesn't have dateOfBirth
+                .dateOfBirth(user.getDateOfBirth())
                 .gender(null) // User entity doesn't have gender
                 .address(user.getAddress())
                 .city(user.getCity())
                 .country(null) // User entity doesn't have country
                 .postalCode(user.getPostalCode())
                 .avatarUrl(user.getProfileImageUrl())
+                .bloodType(user.getBloodType())
+                .allergies(user.getAllergies())
+                .emergencyContact(user.getEmergencyContact())
                 .isActive(user.getIsActive())
                 .isEmailVerified(user.getIsEmailVerified())
                 .roles(roles)

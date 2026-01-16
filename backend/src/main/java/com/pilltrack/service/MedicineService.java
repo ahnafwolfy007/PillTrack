@@ -1,16 +1,9 @@
 package com.pilltrack.service;
 
-import com.pilltrack.dto.request.MedicineRequest;
 import com.pilltrack.dto.response.*;
-import com.pilltrack.exception.ResourceAlreadyExistsException;
 import com.pilltrack.exception.ResourceNotFoundException;
 import com.pilltrack.model.entity.Medicine;
-import com.pilltrack.model.entity.MedicineCategory;
-import com.pilltrack.model.entity.MedicineManufacturer;
-import com.pilltrack.repository.MedicineCategoryRepository;
-import com.pilltrack.repository.MedicineManufacturerRepository;
 import com.pilltrack.repository.MedicineRepository;
-import com.pilltrack.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -27,8 +20,6 @@ import java.util.stream.Collectors;
 public class MedicineService {
     
     private final MedicineRepository medicineRepository;
-    private final MedicineCategoryRepository categoryRepository;
-    private final MedicineManufacturerRepository manufacturerRepository;
     
     @Transactional(readOnly = true)
     public MedicineResponse getMedicineById(Long id) {
@@ -65,8 +56,14 @@ public class MedicineService {
     }
     
     @Transactional(readOnly = true)
+    public PageResponse<MedicineSummaryResponse> getMedicinesByType(String type, Pageable pageable) {
+        Page<Medicine> medicinesPage = medicineRepository.findByType(type, pageable);
+        return buildSummaryPageResponse(medicinesPage);
+    }
+    
+    @Transactional(readOnly = true)
     public PageResponse<MedicineSummaryResponse> getMedicinesByGenericName(String genericName, Pageable pageable) {
-        Page<Medicine> medicinesPage = medicineRepository.findByGenericNameContainingIgnoreCaseAndIsActiveTrue(genericName, pageable);
+        Page<Medicine> medicinesPage = medicineRepository.findByGenericNameContaining(genericName, pageable);
         return buildSummaryPageResponse(medicinesPage);
     }
     
@@ -83,23 +80,12 @@ public class MedicineService {
                         .brandName(m.getBrandName())
                         .genericName(m.getGenericName())
                         .strength(m.getStrength())
-                        .form(m.getForm())
+                        .dosageForm(m.getDosageForm())
                         .slug(m.getSlug())
                         .manufacturerName(m.getManufacturer() != null ? m.getManufacturer().getName() : null)
+                        .unitPrice(m.getUnitPrice())
                         .build())
                 .collect(Collectors.toList());
-    }
-    
-    @Transactional(readOnly = true)
-    public PageResponse<MedicineSummaryResponse> getOtcMedicines(Pageable pageable) {
-        Page<Medicine> medicinesPage = medicineRepository.findByRequiresPrescriptionFalseAndIsActiveTrue(pageable);
-        return buildSummaryPageResponse(medicinesPage);
-    }
-    
-    @Transactional(readOnly = true)
-    public PageResponse<MedicineSummaryResponse> getMedicinesByCategory(Long categoryId, Pageable pageable) {
-        Page<Medicine> medicinesPage = medicineRepository.findByCategoryIdAndIsActiveTrue(categoryId, pageable);
-        return buildSummaryPageResponse(medicinesPage);
     }
     
     @Transactional(readOnly = true)
@@ -109,8 +95,8 @@ public class MedicineService {
     }
     
     @Transactional(readOnly = true)
-    public PageResponse<MedicineSummaryResponse> getMedicinesByForm(String form, Pageable pageable) {
-        Page<Medicine> medicinesPage = medicineRepository.findByForm(form, pageable);
+    public PageResponse<MedicineSummaryResponse> getMedicinesByDosageForm(String dosageForm, Pageable pageable) {
+        Page<Medicine> medicinesPage = medicineRepository.findByDosageForm(dosageForm, pageable);
         return buildSummaryPageResponse(medicinesPage);
     }
     
@@ -121,152 +107,18 @@ public class MedicineService {
     }
     
     @Transactional(readOnly = true)
-    public List<String> getAllForms() {
-        return medicineRepository.findAllForms();
+    public List<String> getAllTypes() {
+        return medicineRepository.findAllTypes();
     }
     
     @Transactional(readOnly = true)
-    public List<String> getAllTherapeuticClasses() {
-        return medicineRepository.findAllTherapeuticClasses();
+    public List<String> getAllDosageForms() {
+        return medicineRepository.findAllDosageForms();
     }
     
-    @Transactional
-    public MedicineResponse createMedicine(MedicineRequest request) {
-        String slug = SlugUtils.generateSlug(request.getBrandName() + " " + request.getStrength());
-        
-        if (medicineRepository.existsBySlug(slug)) {
-            throw new ResourceAlreadyExistsException("Medicine", "slug", slug);
-        }
-        
-        MedicineCategory category = null;
-        if (request.getCategoryId() != null) {
-            category = categoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Category", "id", request.getCategoryId()));
-        }
-        
-        MedicineManufacturer manufacturer = null;
-        if (request.getManufacturerId() != null) {
-            manufacturer = manufacturerRepository.findById(request.getManufacturerId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Manufacturer", "id", request.getManufacturerId()));
-        }
-        
-        Medicine medicine = Medicine.builder()
-                .brandName(request.getBrandName())
-                .genericName(request.getGenericName())
-                .slug(slug)
-                .strength(request.getStrength())
-                .form(request.getForm())
-                .composition(request.getComposition())
-                .category(category)
-                .therapeuticClass(request.getTherapeuticClass())
-                .manufacturer(manufacturer)
-                .description(request.getDescription())
-                .indications(request.getIndications())
-                .dosageAdults(request.getDosageAdults())
-                .dosageChildren(request.getDosageChildren())
-                .dosageElderly(request.getDosageElderly())
-                .administration(request.getAdministration())
-                .sideEffects(request.getSideEffects())
-                .contraindications(request.getContraindications())
-                .warnings(request.getWarnings())
-                .precautions(request.getPrecautions())
-                .drugInteractions(request.getDrugInteractions())
-                .foodInteractions(request.getFoodInteractions())
-                .pregnancyCategory(request.getPregnancyCategory())
-                .pregnancyInfo(request.getPregnancyInfo())
-                .lactationInfo(request.getLactationInfo())
-                .overdoseInfo(request.getOverdoseInfo())
-                .storageConditions(request.getStorageConditions())
-                .requiresPrescription(request.getRequiresPrescription() != null ? request.getRequiresPrescription() : false)
-                .scheduleType(request.getScheduleType())
-                .pharmacology(request.getPharmacology())
-                .pharmacokinetics(request.getPharmacokinetics())
-                .halfLife(request.getHalfLife())
-                .onsetOfAction(request.getOnsetOfAction())
-                .durationOfAction(request.getDurationOfAction())
-                .packSizes(request.getPackSizes())
-                .color(request.getColor())
-                .shape(request.getShape())
-                .imprint(request.getImprint())
-                .keywords(request.getKeywords())
-                .imageUrl(request.getImageUrl())
-                .isActive(request.getIsActive() != null ? request.getIsActive() : true)
-                .approvalDate(request.getApprovalDate())
-                .approvalAuthority(request.getApprovalAuthority())
-                .build();
-        
-        medicine = medicineRepository.save(medicine);
-        
-        log.info("Medicine created: {} ({})", medicine.getBrandName(), medicine.getSlug());
-        
-        return mapToFullResponse(medicine);
-    }
-    
-    @Transactional
-    public MedicineResponse updateMedicine(Long id, MedicineRequest request) {
-        Medicine medicine = medicineRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Medicine", "id", id));
-        
-        // Update fields
-        if (request.getBrandName() != null) medicine.setBrandName(request.getBrandName());
-        if (request.getGenericName() != null) medicine.setGenericName(request.getGenericName());
-        if (request.getStrength() != null) medicine.setStrength(request.getStrength());
-        if (request.getForm() != null) medicine.setForm(request.getForm());
-        if (request.getComposition() != null) medicine.setComposition(request.getComposition());
-        if (request.getTherapeuticClass() != null) medicine.setTherapeuticClass(request.getTherapeuticClass());
-        if (request.getDescription() != null) medicine.setDescription(request.getDescription());
-        if (request.getIndications() != null) medicine.setIndications(request.getIndications());
-        if (request.getDosageAdults() != null) medicine.setDosageAdults(request.getDosageAdults());
-        if (request.getDosageChildren() != null) medicine.setDosageChildren(request.getDosageChildren());
-        if (request.getDosageElderly() != null) medicine.setDosageElderly(request.getDosageElderly());
-        if (request.getAdministration() != null) medicine.setAdministration(request.getAdministration());
-        if (request.getSideEffects() != null) medicine.setSideEffects(request.getSideEffects());
-        if (request.getContraindications() != null) medicine.setContraindications(request.getContraindications());
-        if (request.getWarnings() != null) medicine.setWarnings(request.getWarnings());
-        if (request.getPrecautions() != null) medicine.setPrecautions(request.getPrecautions());
-        if (request.getDrugInteractions() != null) medicine.setDrugInteractions(request.getDrugInteractions());
-        if (request.getFoodInteractions() != null) medicine.setFoodInteractions(request.getFoodInteractions());
-        if (request.getPregnancyCategory() != null) medicine.setPregnancyCategory(request.getPregnancyCategory());
-        if (request.getPregnancyInfo() != null) medicine.setPregnancyInfo(request.getPregnancyInfo());
-        if (request.getLactationInfo() != null) medicine.setLactationInfo(request.getLactationInfo());
-        if (request.getOverdoseInfo() != null) medicine.setOverdoseInfo(request.getOverdoseInfo());
-        if (request.getStorageConditions() != null) medicine.setStorageConditions(request.getStorageConditions());
-        if (request.getRequiresPrescription() != null) medicine.setRequiresPrescription(request.getRequiresPrescription());
-        if (request.getScheduleType() != null) medicine.setScheduleType(request.getScheduleType());
-        if (request.getPharmacology() != null) medicine.setPharmacology(request.getPharmacology());
-        if (request.getPharmacokinetics() != null) medicine.setPharmacokinetics(request.getPharmacokinetics());
-        if (request.getHalfLife() != null) medicine.setHalfLife(request.getHalfLife());
-        if (request.getOnsetOfAction() != null) medicine.setOnsetOfAction(request.getOnsetOfAction());
-        if (request.getDurationOfAction() != null) medicine.setDurationOfAction(request.getDurationOfAction());
-        if (request.getPackSizes() != null) medicine.setPackSizes(request.getPackSizes());
-        if (request.getColor() != null) medicine.setColor(request.getColor());
-        if (request.getShape() != null) medicine.setShape(request.getShape());
-        if (request.getImprint() != null) medicine.setImprint(request.getImprint());
-        if (request.getKeywords() != null) medicine.setKeywords(request.getKeywords());
-        if (request.getImageUrl() != null) medicine.setImageUrl(request.getImageUrl());
-        if (request.getIsActive() != null) medicine.setIsActive(request.getIsActive());
-        if (request.getApprovalDate() != null) medicine.setApprovalDate(request.getApprovalDate());
-        if (request.getApprovalAuthority() != null) medicine.setApprovalAuthority(request.getApprovalAuthority());
-        
-        // Update category if provided
-        if (request.getCategoryId() != null) {
-            MedicineCategory category = categoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Category", "id", request.getCategoryId()));
-            medicine.setCategory(category);
-        }
-        
-        // Update manufacturer if provided
-        if (request.getManufacturerId() != null) {
-            MedicineManufacturer manufacturer = manufacturerRepository.findById(request.getManufacturerId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Manufacturer", "id", request.getManufacturerId()));
-            medicine.setManufacturer(manufacturer);
-        }
-        
-        medicine = medicineRepository.save(medicine);
-        
-        log.info("Medicine updated: {}", medicine.getBrandName());
-        
-        return mapToFullResponse(medicine);
+    @Transactional(readOnly = true)
+    public List<String> getAllGenericNames() {
+        return medicineRepository.findAllGenericNames();
     }
     
     @Transactional
@@ -281,27 +133,11 @@ public class MedicineService {
     }
     
     private MedicineResponse mapToFullResponse(Medicine medicine) {
-        MedicineCategoryResponse categoryResponse = null;
-        if (medicine.getCategory() != null) {
-            categoryResponse = MedicineCategoryResponse.builder()
-                    .id(medicine.getCategory().getId())
-                    .name(medicine.getCategory().getName())
-                    .slug(medicine.getCategory().getSlug())
-                    .description(medicine.getCategory().getDescription())
-                    .iconName(medicine.getCategory().getIconName())
-                    .isActive(medicine.getCategory().getIsActive())
-                    .build();
-        }
-        
         MedicineManufacturerResponse manufacturerResponse = null;
         if (medicine.getManufacturer() != null) {
             manufacturerResponse = MedicineManufacturerResponse.builder()
                     .id(medicine.getManufacturer().getId())
                     .name(medicine.getManufacturer().getName())
-                    .country(medicine.getManufacturer().getCountry())
-                    .description(medicine.getManufacturer().getDescription())
-                    .website(medicine.getManufacturer().getWebsite())
-                    .logoUrl(medicine.getManufacturer().getLogoUrl())
                     .isActive(medicine.getManufacturer().getIsActive())
                     .build();
         }
@@ -317,56 +153,29 @@ public class MedicineService {
                         .genericName(alt.getGenericName())
                         .slug(alt.getSlug())
                         .strength(alt.getStrength())
-                        .form(alt.getForm())
+                        .dosageForm(alt.getDosageForm())
                         .manufacturerName(alt.getManufacturer() != null ? alt.getManufacturer().getName() : null)
-                        .imageUrl(alt.getImageUrl())
+                        .unitPrice(alt.getUnitPrice())
                         .build())
                 .collect(Collectors.toList());
         
         return MedicineResponse.builder()
                 .id(medicine.getId())
+                .brandId(medicine.getBrandId())
                 .brandName(medicine.getBrandName())
-                .genericName(medicine.getGenericName())
+                .type(medicine.getType())
                 .slug(medicine.getSlug())
+                .dosageForm(medicine.getDosageForm())
+                .genericName(medicine.getGenericName())
                 .strength(medicine.getStrength())
-                .form(medicine.getForm())
-                .composition(medicine.getComposition())
-                .category(categoryResponse)
-                .therapeuticClass(medicine.getTherapeuticClass())
                 .manufacturer(manufacturerResponse)
-                .description(medicine.getDescription())
-                .indications(medicine.getIndications())
-                .dosageAdults(medicine.getDosageAdults())
-                .dosageChildren(medicine.getDosageChildren())
-                .dosageElderly(medicine.getDosageElderly())
-                .administration(medicine.getAdministration())
-                .sideEffects(medicine.getSideEffects())
-                .contraindications(medicine.getContraindications())
-                .warnings(medicine.getWarnings())
-                .precautions(medicine.getPrecautions())
-                .drugInteractions(medicine.getDrugInteractions())
-                .foodInteractions(medicine.getFoodInteractions())
-                .pregnancyCategory(medicine.getPregnancyCategory())
-                .pregnancyInfo(medicine.getPregnancyInfo())
-                .lactationInfo(medicine.getLactationInfo())
-                .overdoseInfo(medicine.getOverdoseInfo())
-                .storageConditions(medicine.getStorageConditions())
-                .requiresPrescription(medicine.getRequiresPrescription())
-                .scheduleType(medicine.getScheduleType())
-                .pharmacology(medicine.getPharmacology())
-                .pharmacokinetics(medicine.getPharmacokinetics())
-                .halfLife(medicine.getHalfLife())
-                .onsetOfAction(medicine.getOnsetOfAction())
-                .durationOfAction(medicine.getDurationOfAction())
-                .packSizes(medicine.getPackSizes())
-                .color(medicine.getColor())
-                .shape(medicine.getShape())
-                .imprint(medicine.getImprint())
-                .keywords(medicine.getKeywords())
-                .imageUrl(medicine.getImageUrl())
+                .manufacturerName(medicine.getManufacturer() != null ? medicine.getManufacturer().getName() : null)
+                .unitQuantity(medicine.getUnitQuantity())
+                .containerType(medicine.getContainerType())
+                .unitPrice(medicine.getUnitPrice())
+                .packQuantity(medicine.getPackQuantity())
+                .packPrice(medicine.getPackPrice())
                 .isActive(medicine.getIsActive())
-                .approvalDate(medicine.getApprovalDate())
-                .approvalAuthority(medicine.getApprovalAuthority())
                 .viewCount(medicine.getViewCount())
                 .alternatives(alternatives)
                 .createdAt(medicine.getCreatedAt())
@@ -377,15 +186,17 @@ public class MedicineService {
     private MedicineSummaryResponse mapToSummaryResponse(Medicine medicine) {
         return MedicineSummaryResponse.builder()
                 .id(medicine.getId())
+                .brandId(medicine.getBrandId())
                 .brandName(medicine.getBrandName())
                 .genericName(medicine.getGenericName())
                 .slug(medicine.getSlug())
+                .type(medicine.getType())
+                .dosageForm(medicine.getDosageForm())
                 .strength(medicine.getStrength())
-                .form(medicine.getForm())
-                .categoryName(medicine.getCategory() != null ? medicine.getCategory().getName() : null)
                 .manufacturerName(medicine.getManufacturer() != null ? medicine.getManufacturer().getName() : null)
-                .requiresPrescription(medicine.getRequiresPrescription())
-                .imageUrl(medicine.getImageUrl())
+                .containerType(medicine.getContainerType())
+                .unitPrice(medicine.getUnitPrice())
+                .packPrice(medicine.getPackPrice())
                 .build();
     }
     

@@ -28,7 +28,4 @@ public interface MedicineCategoryRepository extends JpaRepository<MedicineCatego
            "LOWER(c.name) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
            "LOWER(c.description) LIKE LOWER(CONCAT('%', :query, '%'))")
     Page<MedicineCategory> search(@Param("query") String query, Pageable pageable);
-    
-    @Query("SELECT c FROM MedicineCategory c LEFT JOIN FETCH c.medicines WHERE c.id = :id")
-    Optional<MedicineCategory> findByIdWithMedicines(@Param("id") Long id);
 }

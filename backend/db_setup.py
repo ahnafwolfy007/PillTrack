@@ -137,9 +137,13 @@ CREATE TABLE medicines (
     generic_name VARCHAR(500),
     strength VARCHAR(100),
     manufacturer_id INTEGER REFERENCES medicine_manufacturers(id),
-    package_container TEXT,
-    package_size TEXT,
+    unit_quantity VARCHAR(100),
+    container_type VARCHAR(100),
+    unit_price DECIMAL(12,2),
+    pack_quantity DECIMAL(10,2),
+    pack_price DECIMAL(12,2),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    view_count INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -378,11 +382,12 @@ CREATE INDEX idx_notifications_unread ON notifications(user_id, is_read);
 INSERT INTO roles (name) VALUES ('ADMIN'), ('USER'), ('SHOP_OWNER');
 
 -- Insert default admin user (password: admin123)
+-- Note: Hash generated with BCrypt and 10 rounds
 INSERT INTO users (name, email, password, role_id, is_active, is_email_verified, created_at, updated_at)
 VALUES (
     'Admin User',
     'admin@pilltrack.com',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '$2a$10$EqKcp1WFKVQISheBxkguQuqDFOXEewZVSWXeHh6e7bP3FGlg6m7Ji',
     1,
     TRUE,
     TRUE,
@@ -514,8 +519,28 @@ def import_medicines(cursor, csv_file_path):
                 generic_name = row.get('generic', '').strip()
                 strength = row.get('strength', '').strip()
                 manufacturer_name = row.get('manufacturer', '').strip()
-                package_container = row.get('package container', '').strip()
-                package_size = row.get('Package Size', '').strip()
+                unit_quantity = row.get('unit_quantity', '').strip()
+                container_type = row.get('container_type', '').strip()
+                
+                # Parse numeric values
+                unit_price_str = row.get('unit_price', '').strip()
+                pack_quantity_str = row.get('pack_quantity', '').strip()
+                pack_price_str = row.get('pack_price', '').strip()
+                
+                try:
+                    unit_price = float(unit_price_str) if unit_price_str else None
+                except ValueError:
+                    unit_price = None
+                
+                try:
+                    pack_quantity = float(pack_quantity_str) if pack_quantity_str else None
+                except ValueError:
+                    pack_quantity = None
+                    
+                try:
+                    pack_price = float(pack_price_str) if pack_price_str else None
+                except ValueError:
+                    pack_price = None
                 
                 # Handle duplicate slugs by appending brand_id
                 original_slug = slug
@@ -531,18 +556,21 @@ def import_medicines(cursor, csv_file_path):
                     INSERT INTO medicines (
                         brand_id, brand_name, type, slug, dosage_form,
                         generic_name, strength, manufacturer_id,
-                        package_container, package_size,
-                        is_active, created_at, updated_at
+                        unit_quantity, container_type, unit_price,
+                        pack_quantity, pack_price,
+                        is_active, view_count, created_at, updated_at
                     ) VALUES (
                         %s, %s, %s, %s, %s,
                         %s, %s, %s,
+                        %s, %s, %s,
                         %s, %s,
-                        TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                        TRUE, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                     )
                 """, (
                     brand_id, brand_name, med_type, slug, dosage_form,
                     generic_name, strength, manufacturer_id,
-                    package_container, package_size
+                    unit_quantity, container_type, unit_price,
+                    pack_quantity, pack_price
                 ))
                 
                 medicines_imported += 1

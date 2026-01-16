@@ -50,26 +50,38 @@ api.interceptors.response.use(
 // ==================== AUTH SERVICE ====================
 export const authService = {
     login: async (email, password) => {
-        const response = await api.post('/auth/login', { email, password });
-        return {
-            data: {
-                user: response.data.data.user,
-                token: response.data.data.accessToken,
-                refreshToken: response.data.data.refreshToken,
-                roles: response.data.data.roles
-            }
-        };
+        try {
+            const response = await api.post('/auth/login', { email, password });
+            console.log('Login response:', response.data);
+            return {
+                data: {
+                    user: response.data.data.user,
+                    token: response.data.data.accessToken,
+                    refreshToken: response.data.data.refreshToken,
+                    roles: response.data.data.roles
+                }
+            };
+        } catch (error) {
+            console.error('Login error:', error);
+            throw error;
+        }
     },
     register: async (userData) => {
-        const response = await api.post('/auth/register', userData);
-        return {
-            data: {
-                user: response.data.data.user,
-                token: response.data.data.accessToken,
-                refreshToken: response.data.data.refreshToken,
-                roles: response.data.data.roles
-            }
-        };
+        try {
+            const response = await api.post('/auth/register', userData);
+            console.log('Register response:', response.data);
+            return {
+                data: {
+                    user: response.data.data.user,
+                    token: response.data.data.accessToken,
+                    refreshToken: response.data.data.refreshToken,
+                    roles: response.data.data.roles
+                }
+            };
+        } catch (error) {
+            console.error('Register error:', error);
+            throw error;
+        }
     },
     refreshToken: async (refreshToken) => {
         const response = await api.post('/auth/refresh', { refreshToken });
@@ -86,14 +98,17 @@ export const authService = {
 export const userService = {
     getCurrentUser: async () => {
         const response = await api.get('/users/me');
+        console.log('getCurrentUser response:', response.data);
         return response.data.data;
     },
     updateProfile: async (data) => {
+        console.log('updateProfile sending:', data);
         const response = await api.put('/users/me', data);
+        console.log('updateProfile response:', response.data);
         return response.data.data;
     },
     changePassword: async (data) => {
-        const response = await api.post('/users/change-password', data);
+        const response = await api.post('/users/me/change-password', data);
         return response.data;
     }
 };
@@ -102,7 +117,7 @@ export const userService = {
 export const medicationService = {
     getAll: async () => {
         const response = await api.get('/medications');
-        return response.data.data;
+        return { success: true, data: response.data.data };
     },
     getPaged: async (page = 0, size = 10) => {
         const response = await api.get('/medications/paged', { params: { page, size } });
@@ -128,11 +143,11 @@ export const medicationService = {
         await api.delete(`/medications/${id}`);
     },
     updateStatus: async (id, status) => {
-        const response = await api.patch(`/medications/${id}/status`, { status });
+        const response = await api.patch(`/medications/${id}/status`, null, { params: { status } });
         return response.data.data;
     },
     updateInventory: async (id, quantity) => {
-        const response = await api.patch(`/medications/${id}/inventory`, { quantity });
+        const response = await api.patch(`/medications/${id}/inventory`, null, { params: { quantity } });
         return response.data.data;
     }
 };
@@ -147,7 +162,14 @@ export const doseLogService = {
         const response = await api.get('/dose-logs/range', { 
             params: { startDate, endDate } 
         });
-        return response.data.data;
+        return { success: true, data: response.data.data };
+    },
+    // Alias for convenience
+    getRange: async (startDate, endDate) => {
+        const response = await api.get('/dose-logs/range', { 
+            params: { startDate, endDate } 
+        });
+        return { success: true, data: response.data.data };
     },
     getByMedication: async (medicationId, page = 0, size = 10) => {
         const response = await api.get(`/dose-logs/medication/${medicationId}`, { 
@@ -164,12 +186,16 @@ export const doseLogService = {
         return response.data.data;
     },
     markAsSkipped: async (id, reason) => {
-        const response = await api.post(`/dose-logs/${id}/skip`, { reason });
+        const response = await api.post(`/dose-logs/${id}/skip`, null, { params: { reason } });
         return response.data.data;
     },
-    getAdherence: async (medicationId, days = 30) => {
+    markAsMissed: async (id) => {
+        const response = await api.post(`/dose-logs/${id}/miss`);
+        return response.data.data;
+    },
+    getAdherence: async (medicationId, startDate, endDate) => {
         const response = await api.get(`/dose-logs/adherence/${medicationId}`, { 
-            params: { days } 
+            params: { startDate, endDate } 
         });
         return response.data.data;
     }
@@ -195,8 +221,14 @@ export const medicineService = {
         });
         return response.data.data;
     },
-    getByCategory: async (categoryId, page = 0, size = 20) => {
-        const response = await api.get(`/medicines/category/${categoryId}`, { 
+    getByType: async (type, page = 0, size = 20) => {
+        const response = await api.get(`/medicines/type/${encodeURIComponent(type)}`, { 
+            params: { page, size } 
+        });
+        return response.data.data;
+    },
+    getByGeneric: async (genericName, page = 0, size = 20) => {
+        const response = await api.get(`/medicines/generic/${encodeURIComponent(genericName)}`, { 
             params: { page, size } 
         });
         return response.data.data;
@@ -207,12 +239,30 @@ export const medicineService = {
         });
         return response.data.data;
     },
+    getByDosageForm: async (dosageForm, page = 0, size = 20) => {
+        const response = await api.get(`/medicines/dosage-form/${encodeURIComponent(dosageForm)}`, { 
+            params: { page, size } 
+        });
+        return response.data.data;
+    },
     getAlternatives: async (id) => {
         const response = await api.get(`/medicines/${id}/alternatives`);
         return response.data.data;
     },
-    getOTC: async (page = 0, size = 20) => {
-        const response = await api.get('/medicines/otc', { params: { page, size } });
+    getPopular: async (page = 0, size = 20) => {
+        const response = await api.get('/medicines/popular', { params: { page, size } });
+        return response.data.data;
+    },
+    getTypes: async () => {
+        const response = await api.get('/medicines/types');
+        return response.data.data;
+    },
+    getDosageForms: async () => {
+        const response = await api.get('/medicines/dosage-forms');
+        return response.data.data;
+    },
+    getGenerics: async () => {
+        const response = await api.get('/medicines/generics');
         return response.data.data;
     }
 };

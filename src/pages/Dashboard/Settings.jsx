@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -7,12 +7,14 @@ import { Label } from '../../components/ui/Label';
 import { 
     Bell, Moon, Globe, Lock, Smartphone, Mail, 
     Volume2, Clock, Shield, Eye, EyeOff, Check,
-    ChevronRight, LogOut, Trash2, Loader2
+    ChevronRight, LogOut, Trash2, Loader2, Play, AlertCircle
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { userService } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
+import { getCurrentTimeInDhaka } from '../../utils/timezone';
 
 const SettingSection = ({ title, description, children }) => (
     <Card className="border-none shadow-md">
@@ -52,6 +54,37 @@ const ToggleSetting = ({ icon: Icon, label, description, checked, onChange }) =>
 const Settings = () => {
     const { logout } = useAuth();
     const navigate = useNavigate();
+    const { 
+        triggerTestReminder, 
+        playTestSound, 
+        soundEnabled, 
+        toggleSound,
+        requestNotificationPermission,
+        ensureAudioInitialized,
+        pendingReminders
+    } = useNotifications();
+    
+    const [notificationStatus, setNotificationStatus] = useState('unknown');
+    const [currentDhakaTime, setCurrentDhakaTime] = useState('');
+    
+    useEffect(() => {
+        // Check notification permission status
+        if ('Notification' in window) {
+            setNotificationStatus(Notification.permission);
+        }
+        
+        // Update Dhaka time every second
+        const updateTime = () => {
+            const { hours, minutes, seconds } = getCurrentTimeInDhaka();
+            setCurrentDhakaTime(
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+            );
+        };
+        updateTime();
+        const interval = setInterval(updateTime, 1000);
+        return () => clearInterval(interval);
+    }, []);
+    
     const [settings, setSettings] = useState({
         pushNotifications: true,
         emailNotifications: true,
@@ -130,6 +163,97 @@ const Settings = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Test Notification System */}
+                <SettingSection title="🔔 Test Notification System" description="Verify your alerts are working">
+                    <div className="space-y-4">
+                        {/* Status Indicators */}
+                        <div className="p-4 bg-slate-50 rounded-xl space-y-3">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-slate-600">Current Dhaka Time:</span>
+                                <span className="font-mono font-bold text-lg text-primary">{currentDhakaTime}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-slate-600">Browser Permission:</span>
+                                <span className={cn(
+                                    "px-2 py-1 rounded text-xs font-medium",
+                                    notificationStatus === 'granted' ? "bg-green-100 text-green-700" :
+                                    notificationStatus === 'denied' ? "bg-red-100 text-red-700" :
+                                    "bg-yellow-100 text-yellow-700"
+                                )}>
+                                    {notificationStatus === 'granted' ? '✅ Granted' :
+                                     notificationStatus === 'denied' ? '❌ Denied' : '⚠️ Not Asked'}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-slate-600">Sound Enabled:</span>
+                                <span className={cn(
+                                    "px-2 py-1 rounded text-xs font-medium",
+                                    soundEnabled ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                                )}>
+                                    {soundEnabled ? '🔊 On' : '🔇 Off'}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-slate-600">Pending Reminders:</span>
+                                <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                                    {pendingReminders?.length || 0} doses
+                                </span>
+                            </div>
+                        </div>
+                        
+                        {/* Permission Request */}
+                        {notificationStatus !== 'granted' && (
+                            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+                                <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
+                                <div>
+                                    <p className="text-sm text-amber-800 font-medium">Permission Required</p>
+                                    <p className="text-xs text-amber-600 mb-2">Browser notifications need permission to work.</p>
+                                    <Button 
+                                        size="sm" 
+                                        variant="outline"
+                                        className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                                        onClick={async () => {
+                                            const granted = await requestNotificationPermission();
+                                            setNotificationStatus(granted ? 'granted' : 'denied');
+                                        }}
+                                    >
+                                        Request Permission
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Test Buttons */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <Button 
+                                onClick={() => {
+                                    ensureAudioInitialized();
+                                    playTestSound('melody');
+                                }}
+                                variant="outline"
+                                className="gap-2"
+                            >
+                                <Volume2 size={16} />
+                                Test Sound
+                            </Button>
+                            <Button 
+                                onClick={() => {
+                                    ensureAudioInitialized();
+                                    triggerTestReminder();
+                                }}
+                                className="gap-2 bg-primary"
+                            >
+                                <Play size={16} />
+                                Test Full Alert
+                            </Button>
+                        </div>
+                        
+                        <p className="text-xs text-slate-500 text-center">
+                            Click "Test Full Alert" to see the medication reminder popup
+                        </p>
+                    </div>
+                </SettingSection>
+
                 {/* Notifications */}
                 <SettingSection title="Notifications" description="Control how you receive reminders and alerts">
                     <ToggleSetting 

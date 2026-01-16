@@ -57,6 +57,18 @@ public class User implements UserDetails {
     @Column
     private String profileImageUrl;
     
+    @Column
+    private java.time.LocalDate dateOfBirth;
+    
+    @Column(length = 5)
+    private String bloodType;
+    
+    @Column(columnDefinition = "TEXT")
+    private String allergies;
+    
+    @Column(length = 200)
+    private String emergencyContact;
+    
     @Column(nullable = false)
     @Builder.Default
     private Boolean isActive = true;

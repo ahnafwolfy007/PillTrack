@@ -89,6 +89,13 @@ public class DoseLogController {
         return ResponseEntity.ok(ApiResponse.success(response, "Dose marked as skipped"));
     }
     
+    @PostMapping("/{id}/miss")
+    @Operation(summary = "Mark dose as missed")
+    public ResponseEntity<ApiResponse<DoseLogResponse>> markDoseMissed(@PathVariable Long id) {
+        DoseLogResponse response = doseLogService.markDoseMissed(id);
+        return ResponseEntity.ok(ApiResponse.success(response, "Dose marked as missed"));
+    }
+    
     @GetMapping("/adherence/{medicationId}")
     @Operation(summary = "Get adherence percentage for a medication")
     public ResponseEntity<ApiResponse<Long>> getAdherence(

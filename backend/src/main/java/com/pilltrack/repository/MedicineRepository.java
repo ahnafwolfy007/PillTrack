@@ -30,39 +30,42 @@ public interface MedicineRepository extends JpaRepository<Medicine, Long>, JpaSp
     @Query("SELECT m FROM Medicine m WHERE m.isActive = true AND " +
            "(LOWER(m.brandName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
            "LOWER(m.genericName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(m.composition) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(m.therapeuticClass) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(m.keywords) LIKE LOWER(CONCAT('%', :query, '%')))")
+           "LOWER(m.strength) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(m.dosageForm) LIKE LOWER(CONCAT('%', :query, '%')))")
     Page<Medicine> fullTextSearch(@Param("query") String query, Pageable pageable);
     
-    // Find by category
-    Page<Medicine> findByCategoryIdAndIsActiveTrue(Long categoryId, Pageable pageable);
-    
-    List<Medicine> findByCategoryIdAndIsActiveTrue(Long categoryId);
+    // Find by type (allopathic, herbal, etc.)
+    @Query("SELECT m FROM Medicine m WHERE m.isActive = true AND LOWER(m.type) = LOWER(:type)")
+    Page<Medicine> findByType(@Param("type") String type, Pageable pageable);
     
     // Find by manufacturer
     Page<Medicine> findByManufacturerIdAndIsActiveTrue(Long manufacturerId, Pageable pageable);
     
     List<Medicine> findByManufacturerIdAndIsActiveTrue(Long manufacturerId);
     
-    // Find by form (tablet, syrup, etc.)
-    @Query("SELECT m FROM Medicine m WHERE m.isActive = true AND LOWER(m.form) = LOWER(:form)")
-    Page<Medicine> findByForm(@Param("form") String form, Pageable pageable);
+    // Find by dosage form (tablet, syrup, etc.)
+    @Query("SELECT m FROM Medicine m WHERE m.isActive = true AND LOWER(m.dosageForm) = LOWER(:dosageForm)")
+    Page<Medicine> findByDosageForm(@Param("dosageForm") String dosageForm, Pageable pageable);
     
-    // Find by therapeutic class
-    @Query("SELECT m FROM Medicine m WHERE m.isActive = true AND LOWER(m.therapeuticClass) = LOWER(:therapeuticClass)")
-    Page<Medicine> findByTherapeuticClass(@Param("therapeuticClass") String therapeuticClass, Pageable pageable);
+    // Get distinct types (for category filter)
+    @Query("SELECT DISTINCT m.type FROM Medicine m WHERE m.isActive = true AND m.type IS NOT NULL ORDER BY m.type")
+    List<String> findAllTypes();
     
-    // Find prescription vs OTC medicines
-    Page<Medicine> findByRequiresPrescriptionAndIsActiveTrue(Boolean requiresPrescription, Pageable pageable);
+    // Get distinct dosage forms
+    @Query("SELECT DISTINCT m.dosageForm FROM Medicine m WHERE m.isActive = true AND m.dosageForm IS NOT NULL ORDER BY m.dosageForm")
+    List<String> findAllDosageForms();
     
-    // Get distinct forms
-    @Query("SELECT DISTINCT m.form FROM Medicine m WHERE m.isActive = true ORDER BY m.form")
-    List<String> findAllForms();
+    // Get distinct generic names (for generic-based category)
+    @Query("SELECT DISTINCT m.genericName FROM Medicine m WHERE m.isActive = true AND m.genericName IS NOT NULL ORDER BY m.genericName")
+    List<String> findAllGenericNames();
     
-    // Get distinct therapeutic classes
-    @Query("SELECT DISTINCT m.therapeuticClass FROM Medicine m WHERE m.isActive = true AND m.therapeuticClass IS NOT NULL ORDER BY m.therapeuticClass")
-    List<String> findAllTherapeuticClasses();
+    // Find by generic name (exact match for finding alternatives)
+    @Query("SELECT m FROM Medicine m WHERE m.isActive = true AND LOWER(m.genericName) = LOWER(:genericName) AND m.id != :excludeId")
+    List<Medicine> findAlternatives(@Param("genericName") String genericName, @Param("excludeId") Long excludeId);
+    
+    // Find by generic name containing
+    @Query("SELECT m FROM Medicine m WHERE m.isActive = true AND LOWER(m.genericName) LIKE LOWER(CONCAT('%', :genericName, '%'))")
+    Page<Medicine> findByGenericNameContaining(@Param("genericName") String genericName, Pageable pageable);
     
     // Increment view count
     @Modifying
@@ -73,27 +76,17 @@ public interface MedicineRepository extends JpaRepository<Medicine, Long>, JpaSp
     @Query("SELECT m FROM Medicine m WHERE m.isActive = true ORDER BY m.viewCount DESC")
     Page<Medicine> findPopular(Pageable pageable);
     
-    // Count by category
-    @Query("SELECT COUNT(m) FROM Medicine m WHERE m.category.id = :categoryId AND m.isActive = true")
-    long countByCategoryId(@Param("categoryId") Long categoryId);
+    // Find all active medicines
+    Page<Medicine> findByIsActiveTrue(Pageable pageable);
+    
+    // Find by generic name and excluding one id
+    List<Medicine> findByGenericNameAndIdNot(String genericName, Long id);
+    
+    // Count by type
+    @Query("SELECT COUNT(m) FROM Medicine m WHERE m.type = :type AND m.isActive = true")
+    long countByType(@Param("type") String type);
     
     // Count by manufacturer
     @Query("SELECT COUNT(m) FROM Medicine m WHERE m.manufacturer.id = :manufacturerId AND m.isActive = true")
     long countByManufacturerId(@Param("manufacturerId") Long manufacturerId);
-    
-    // Find by generic name for alternatives
-    @Query("SELECT m FROM Medicine m WHERE m.isActive = true AND LOWER(m.genericName) = LOWER(:genericName) AND m.id != :excludeId")
-    List<Medicine> findAlternatives(@Param("genericName") String genericName, @Param("excludeId") Long excludeId);
-    
-    // Find all active medicines
-    Page<Medicine> findByIsActiveTrue(Pageable pageable);
-    
-    // Find by generic name containing
-    Page<Medicine> findByGenericNameContainingIgnoreCaseAndIsActiveTrue(String genericName, Pageable pageable);
-    
-    // Find OTC medicines
-    Page<Medicine> findByRequiresPrescriptionFalseAndIsActiveTrue(Pageable pageable);
-    
-    // Find by generic name and excluding one id
-    List<Medicine> findByGenericNameAndIdNot(String genericName, Long id);
 }

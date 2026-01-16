@@ -57,4 +57,7 @@ public interface DoseLogRepository extends JpaRepository<DoseLog, Long> {
     @Query("SELECT d FROM DoseLog d WHERE d.medication.user.id = :userId AND " +
            "CAST(d.scheduledTime AS date) = CURRENT_DATE ORDER BY d.scheduledTime")
     List<DoseLog> findTodaysDosesByUserId(@Param("userId") Long userId);
+    
+    // Check if dose log already exists for a medication at a specific scheduled time
+    boolean existsByMedicationIdAndScheduledTime(Long medicationId, LocalDateTime scheduledTime);
 }

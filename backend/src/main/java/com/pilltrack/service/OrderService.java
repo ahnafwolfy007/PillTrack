@@ -188,7 +188,7 @@ public class OrderService {
             orderItem.setShopMedicine(shopMedicine);
             orderItem.setMedicineName(shopMedicine.getMedicine().getBrandName());
             orderItem.setMedicineStrength(shopMedicine.getMedicine().getStrength());
-            orderItem.setMedicineForm(shopMedicine.getMedicine().getForm());
+            orderItem.setMedicineForm(shopMedicine.getMedicine().getDosageForm());
             if (shopMedicine.getMedicine().getManufacturer() != null) {
                 orderItem.setManufacturerName(shopMedicine.getMedicine().getManufacturer().getName());
             }
@@ -275,7 +275,7 @@ public class OrderService {
             orderItem.setShopMedicine(shopMedicine);
             orderItem.setMedicineName(shopMedicine.getMedicine().getBrandName());
             orderItem.setMedicineStrength(shopMedicine.getMedicine().getStrength());
-            orderItem.setMedicineForm(shopMedicine.getMedicine().getForm());
+            orderItem.setMedicineForm(shopMedicine.getMedicine().getDosageForm());
             if (shopMedicine.getMedicine().getManufacturer() != null) {
                 orderItem.setManufacturerName(shopMedicine.getMedicine().getManufacturer().getName());
             }

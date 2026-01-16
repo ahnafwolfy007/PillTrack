@@ -26,6 +26,9 @@ public class UserResponse {
     private String country;
     private String postalCode;
     private String avatarUrl;
+    private String bloodType;
+    private String allergies;
+    private String emergencyContact;
     private Boolean isActive;
     private Boolean isEmailVerified;
     private List<String> roles;

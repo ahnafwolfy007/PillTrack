@@ -24,4 +24,9 @@ public class DoseLogResponse {
     private DoseStatus status;
     private String notes;
     private LocalDateTime createdAt;
+    
+    // Inventory info after action
+    private Integer currentInventory;
+    private Integer quantityPerDose;
+    private String instructions;
 }

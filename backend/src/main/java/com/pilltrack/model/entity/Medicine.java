@@ -6,7 +6,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,159 +25,75 @@ public class Medicine {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    // Basic Information
-    @Column(nullable = false, length = 150)
+    // Matches CSV: brand id
+    @Column(name = "brand_id")
+    private Integer brandId;
+    
+    // Matches CSV: brand name
+    @Column(name = "brand_name", nullable = false, length = 200)
     private String brandName;
     
-    @Column(nullable = false, length = 150)
-    private String genericName;
+    // Matches CSV: type (allopathic, herbal, etc.)
+    @Column(name = "type", length = 50)
+    private String type;
     
-    @Column(unique = true, length = 200)
+    // Matches CSV: slug
+    @Column(name = "slug", length = 255)
     private String slug;
     
-    // Composition
-    @Column(length = 50)
+    // Matches CSV: dosage form
+    @Column(name = "dosage_form", length = 100)
+    private String dosageForm;
+    
+    // Matches CSV: generic
+    @Column(name = "generic_name", length = 500)
+    private String genericName;
+    
+    // Matches CSV: strength
+    @Column(name = "strength", length = 100)
     private String strength;
     
-    @Column(length = 50)
-    private String form;
-    
-    @Column(columnDefinition = "TEXT")
-    private String composition;
-    
-    // Classification
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id")
-    private MedicineCategory category;
-    
-    @Column(length = 100)
-    private String therapeuticClass;
-    
-    // Manufacturer
+    // Manufacturer relationship
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manufacturer_id")
     private MedicineManufacturer manufacturer;
     
-    // Medical Information
-    @Column(columnDefinition = "TEXT")
-    private String description;
+    // Matches CSV: unit_quantity
+    @Column(name = "unit_quantity", length = 100)
+    private String unitQuantity;
     
-    @Column(columnDefinition = "TEXT")
-    private String indications;
+    // Matches CSV: container_type
+    @Column(name = "container_type", length = 100)
+    private String containerType;
     
-    @Column(columnDefinition = "TEXT")
-    private String dosageAdults;
+    // Matches CSV: unit_price
+    @Column(name = "unit_price", precision = 12, scale = 2)
+    private BigDecimal unitPrice;
     
-    @Column(columnDefinition = "TEXT")
-    private String dosageChildren;
+    // Matches CSV: pack_quantity
+    @Column(name = "pack_quantity", precision = 10, scale = 2)
+    private BigDecimal packQuantity;
     
-    @Column(columnDefinition = "TEXT")
-    private String dosageElderly;
+    // Matches CSV: pack_price
+    @Column(name = "pack_price", precision = 12, scale = 2)
+    private BigDecimal packPrice;
     
-    @Column(columnDefinition = "TEXT")
-    private String administration;
-    
-    // Safety Information
-    @Column(columnDefinition = "TEXT")
-    private String sideEffects;
-    
-    @Column(columnDefinition = "TEXT")
-    private String contraindications;
-    
-    @Column(columnDefinition = "TEXT")
-    private String warnings;
-    
-    @Column(columnDefinition = "TEXT")
-    private String precautions;
-    
-    @Column(columnDefinition = "TEXT")
-    private String drugInteractions;
-    
-    @Column(columnDefinition = "TEXT")
-    private String foodInteractions;
-    
-    // Pregnancy & Lactation
-    @Column(length = 5)
-    private String pregnancyCategory;
-    
-    @Column(columnDefinition = "TEXT")
-    private String pregnancyInfo;
-    
-    @Column(columnDefinition = "TEXT")
-    private String lactationInfo;
-    
-    // Overdose & Storage
-    @Column(columnDefinition = "TEXT")
-    private String overdoseInfo;
-    
-    @Column(columnDefinition = "TEXT")
-    private String storageConditions;
-    
-    // Prescription Information
-    @Column
-    @Builder.Default
-    private Boolean requiresPrescription = false;
-    
-    @Column(length = 20)
-    private String scheduleType;
-    
-    // Pharmacology
-    @Column(columnDefinition = "TEXT")
-    private String pharmacology;
-    
-    @Column(columnDefinition = "TEXT")
-    private String pharmacokinetics;
-    
-    @Column(length = 50)
-    private String halfLife;
-    
-    @Column(length = 50)
-    private String onsetOfAction;
-    
-    @Column(length = 50)
-    private String durationOfAction;
-    
-    // Packaging Information
-    @Column(length = 100)
-    private String packSizes;
-    
-    @Column(length = 50)
-    private String color;
-    
-    @Column(length = 50)
-    private String shape;
-    
-    @Column(length = 50)
-    private String imprint;
-    
-    // SEO & Search
-    @Column(columnDefinition = "TEXT")
-    private String keywords;
-    
-    @Column(length = 500)
-    private String imageUrl;
-    
-    // Status & Metadata
-    @Column
+    // Status field
+    @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;
     
-    @Column
-    private LocalDate approvalDate;
-    
-    @Column(length = 100)
-    private String approvalAuthority;
-    
-    @Column
+    // View count for popularity
+    @Column(name = "view_count")
     @Builder.Default
     private Integer viewCount = 0;
     
     @CreatedDate
-    @Column(updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
     
     @LastModifiedDate
-    @Column
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
     // Relationships

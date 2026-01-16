@@ -93,10 +93,14 @@ public class DoseLogService {
         
         doseLog = doseLogRepository.save(doseLog);
         
-        // Update medication inventory if dose was taken
-        if (request.getStatus() == DoseStatus.TAKEN && medication.getInventory() > 0) {
-            medication.setInventory(medication.getInventory() - 1);
-            medicationRepository.save(medication);
+        // Update medication inventory if dose was taken (using quantityPerDose)
+        if (request.getStatus() == DoseStatus.TAKEN) {
+            int quantityPerDose = medication.getQuantityPerDose() != null ? medication.getQuantityPerDose() : 1;
+            if (medication.getInventory() >= quantityPerDose) {
+                medication.setInventory(medication.getInventory() - quantityPerDose);
+                medicationRepository.save(medication);
+                log.info("Reduced inventory by {} for medication: {}", quantityPerDose, medication.getName());
+            }
         }
         
         log.info("Dose logged for medication: {} with status: {}", medication.getName(), request.getStatus());
@@ -131,11 +135,14 @@ public class DoseLogService {
         doseLog.setStatus(DoseStatus.TAKEN);
         doseLog.setTakenTime(LocalDateTime.now());
         
-        // Update medication inventory
+        // Update medication inventory using quantityPerDose
         Medication medication = doseLog.getMedication();
-        if (medication.getInventory() > 0) {
-            medication.setInventory(medication.getInventory() - 1);
+        int quantityPerDose = medication.getQuantityPerDose() != null ? medication.getQuantityPerDose() : 1;
+        if (medication.getInventory() >= quantityPerDose) {
+            medication.setInventory(medication.getInventory() - quantityPerDose);
             medicationRepository.save(medication);
+            log.info("Reduced inventory by {} for medication: {}, remaining: {}", 
+                    quantityPerDose, medication.getName(), medication.getInventory());
         }
         
         doseLog = doseLogRepository.save(doseLog);
@@ -154,6 +161,18 @@ public class DoseLogService {
         doseLog = doseLogRepository.save(doseLog);
         
         log.info("Dose marked as skipped for medication: {}", doseLog.getMedication().getName());
+        
+        return mapToResponse(doseLog);
+    }
+    
+    @Transactional
+    public DoseLogResponse markDoseMissed(Long id) {
+        DoseLog doseLog = getDoseLogAndVerifyOwnership(id);
+        doseLog.setStatus(DoseStatus.MISSED);
+        
+        doseLog = doseLogRepository.save(doseLog);
+        
+        log.info("Dose marked as missed for medication: {}", doseLog.getMedication().getName());
         
         return mapToResponse(doseLog);
     }
@@ -213,17 +232,21 @@ public class DoseLogService {
     }
     
     private DoseLogResponse mapToResponse(DoseLog doseLog) {
+        Medication medication = doseLog.getMedication();
         return DoseLogResponse.builder()
                 .id(doseLog.getId())
-                .medicationId(doseLog.getMedication().getId())
-                .medicationName(doseLog.getMedication().getName())
-                .medicationType(doseLog.getMedication().getType().name())
-                .strength(doseLog.getMedication().getDosage())
+                .medicationId(medication.getId())
+                .medicationName(medication.getName())
+                .medicationType(medication.getType().name())
+                .strength(medication.getDosage())
                 .scheduledTime(doseLog.getScheduledTime())
                 .takenTime(doseLog.getTakenTime())
                 .status(doseLog.getStatus())
                 .notes(doseLog.getNotes())
                 .createdAt(doseLog.getCreatedAt())
+                .currentInventory(medication.getInventory())
+                .quantityPerDose(medication.getQuantityPerDose())
+                .instructions(medication.getInstructions())
                 .build();
     }
     

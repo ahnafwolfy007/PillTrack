@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -12,13 +14,15 @@ import lombok.NoArgsConstructor;
 public class MedicineSummaryResponse {
     
     private Long id;
+    private Integer brandId;
     private String brandName;
     private String genericName;
     private String slug;
+    private String type;  // allopathic, herbal, etc. - used as category
+    private String dosageForm;
     private String strength;
-    private String form;
-    private String categoryName;
     private String manufacturerName;
-    private Boolean requiresPrescription;
-    private String imageUrl;
+    private String containerType;
+    private BigDecimal unitPrice;
+    private BigDecimal packPrice;
 }

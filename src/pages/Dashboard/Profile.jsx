@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -6,7 +6,7 @@ import { Input } from '../../components/ui/Input';
 import { Label } from '../../components/ui/Label';
 import { 
     User, Mail, Phone, MapPin, Camera, Shield, 
-    Calendar, Pill, Activity, Edit2, Save, X, Check, Loader2
+    Calendar, Pill, Activity, Edit2, Save, X, Check, Loader2, Lock
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
@@ -19,6 +19,8 @@ const Profile = () => {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const fileInputRef = useRef(null);
+    const [previewImage, setPreviewImage] = useState(null);
     const [stats, setStats] = useState([
         { label: 'Active Medications', value: '0', icon: Pill, color: 'text-blue-600 bg-blue-50' },
         { label: 'Adherence Rate', value: '-', icon: Activity, color: 'text-green-600 bg-green-50' },
@@ -32,29 +34,60 @@ const Profile = () => {
         address: '',
         dateOfBirth: '',
         emergencyContact: '',
-        bloodType: 'O+',
-        allergies: ''
+        bloodType: '',
+        allergies: '',
+        avatarUrl: ''
     });
 
     const [tempProfile, setTempProfile] = useState({ ...profile });
 
     useEffect(() => {
-        if (user) {
-            const newProfile = {
-                name: user.name || '',
-                email: user.email || '',
-                phone: user.phone || '',
-                address: user.address || '',
-                dateOfBirth: user.dateOfBirth || '',
-                emergencyContact: user.emergencyContact || '',
-                bloodType: user.bloodType || 'O+',
-                allergies: user.allergies || ''
-            };
-            setProfile(newProfile);
-            setTempProfile(newProfile);
-        }
+        // Fetch fresh user data from API on mount
+        const fetchUserData = async () => {
+            try {
+                setLoading(true);
+                const userData = await userService.getCurrentUser();
+                console.log('Fetched user data:', userData);
+                const newProfile = {
+                    name: userData.name || '',
+                    email: userData.email || '',
+                    phone: userData.phone || '',
+                    address: userData.address || '',
+                    dateOfBirth: userData.dateOfBirth || '',
+                    emergencyContact: userData.emergencyContact || '',
+                    bloodType: userData.bloodType || '',
+                    allergies: userData.allergies || '',
+                    avatarUrl: userData.avatarUrl || ''
+                };
+                setProfile(newProfile);
+                setTempProfile(newProfile);
+                setPreviewImage(null);
+            } catch (err) {
+                console.error('Failed to fetch user data:', err);
+                // Fallback to context user if API fails
+                if (user) {
+                    const newProfile = {
+                        name: user.name || '',
+                        email: user.email || '',
+                        phone: user.phone || '',
+                        address: user.address || '',
+                        dateOfBirth: user.dateOfBirth || '',
+                        emergencyContact: user.emergencyContact || '',
+                        bloodType: user.bloodType || '',
+                        allergies: user.allergies || '',
+                        avatarUrl: user.avatarUrl || ''
+                    };
+                    setProfile(newProfile);
+                    setTempProfile(newProfile);
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchUserData();
         fetchStats();
-    }, [user]);
+    }, []);
 
     const fetchStats = async () => {
         try {
@@ -81,29 +114,90 @@ const Profile = () => {
         }
     };
 
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                setError('Please select an image file');
+                return;
+            }
+            // Validate file size (max 2MB for localStorage)
+            if (file.size > 2 * 1024 * 1024) {
+                setError('Image size should be less than 2MB');
+                return;
+            }
+            
+            // Create preview and store locally
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const dataUrl = reader.result;
+                setPreviewImage(dataUrl);
+                // Store in localStorage for persistence (workaround without file upload server)
+                localStorage.setItem('profileImage', dataUrl);
+                setTempProfile({ ...tempProfile, avatarUrl: dataUrl });
+                setSuccess('Photo updated! It will be saved locally.');
+                setTimeout(() => setSuccess(''), 3000);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleSave = async () => {
         setSaving(true);
         setError('');
         setSuccess('');
         try {
-            const response = await userService.updateProfile({
-                name: tempProfile.name,
-                phone: tempProfile.phone,
-                address: tempProfile.address,
-                dateOfBirth: tempProfile.dateOfBirth,
-                emergencyContact: tempProfile.emergencyContact,
-                bloodType: tempProfile.bloodType,
-                allergies: tempProfile.allergies
-            });
+            // Split name into first and last name for the API
+            const nameParts = tempProfile.name.trim().split(' ');
+            const firstName = nameParts[0] || '';
+            const lastName = nameParts.slice(1).join(' ') || '';
 
-            if (response.success) {
-                setProfile(tempProfile);
+            // Don't send avatarUrl if it's a data URL (too large for backend)
+            // Only send if it's a regular URL
+            let avatarToSend = null;
+            if (tempProfile.avatarUrl && !tempProfile.avatarUrl.startsWith('data:')) {
+                avatarToSend = tempProfile.avatarUrl;
+            }
+
+            const updateData = {
+                firstName,
+                lastName,
+                phone: tempProfile.phone || null,
+                address: tempProfile.address || null,
+                dateOfBirth: tempProfile.dateOfBirth || null,
+                emergencyContact: tempProfile.emergencyContact || null,
+                bloodType: tempProfile.bloodType || null,
+                allergies: tempProfile.allergies || null,
+                avatarUrl: avatarToSend
+            };
+
+            console.log('Sending profile update:', updateData);
+            const response = await userService.updateProfile(updateData);
+            console.log('Profile update response:', response);
+
+            if (response) {
+                // Update local state with response data
+                const updatedProfile = {
+                    name: response.name || tempProfile.name,
+                    email: response.email || tempProfile.email,
+                    phone: response.phone || '',
+                    address: response.address || '',
+                    dateOfBirth: response.dateOfBirth || '',
+                    emergencyContact: response.emergencyContact || '',
+                    bloodType: response.bloodType || '',
+                    allergies: response.allergies || '',
+                    avatarUrl: response.avatarUrl || ''
+                };
+                setProfile(updatedProfile);
+                setTempProfile(updatedProfile);
                 setIsEditing(false);
                 setSuccess('Profile updated successfully!');
+                setPreviewImage(null);
                 refreshProfile?.();
                 setTimeout(() => setSuccess(''), 3000);
             } else {
-                setError(response.message || 'Failed to update profile');
+                setError('Failed to update profile');
             }
         } catch (err) {
             console.error('Failed to save profile:', err);
@@ -115,9 +209,35 @@ const Profile = () => {
 
     const handleCancel = () => {
         setTempProfile(profile);
+        setPreviewImage(null);
         setIsEditing(false);
         setError('');
     };
+
+    // Check if blood type can be edited (only if not already set)
+    const canEditBloodType = !profile.bloodType || profile.bloodType === '';
+
+    const getProfileImage = () => {
+        if (previewImage) return previewImage;
+        // Check localStorage for locally stored image
+        const localImage = localStorage.getItem('profileImage');
+        if (localImage) return localImage;
+        if (profile.avatarUrl) return profile.avatarUrl;
+        // Generate a consistent avatar based on user name
+        const seed = profile.name || profile.email || 'user';
+        return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(seed)}&backgroundColor=6366f1`;
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="text-center">
+                    <Loader2 size={40} className="animate-spin text-primary mx-auto mb-4" />
+                    <p className="text-slate-500">Loading profile...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -163,19 +283,30 @@ const Profile = () => {
                         <CardContent className="p-6">
                             <div className="text-center">
                                 <div className="relative inline-block mb-4">
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        accept="image/*"
+                                        onChange={handleImageChange}
+                                        className="hidden"
+                                    />
                                     <img
-                                        src="https://i.pravatar.cc/150?u=a042581f4e29026704d"
+                                        src={getProfileImage()}
                                         alt="Profile"
-                                        className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                                        className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg bg-slate-100"
                                     />
                                     {isEditing && (
-                                        <button className="absolute bottom-0 right-0 p-2 bg-primary text-white rounded-full shadow-lg hover:bg-primary/90 transition-colors">
+                                        <button 
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="absolute bottom-0 right-0 p-2 bg-primary text-white rounded-full shadow-lg hover:bg-primary/90 transition-colors"
+                                            title="Change profile photo"
+                                        >
                                             <Camera size={14} />
                                         </button>
                                     )}
                                 </div>
-                                <h2 className="text-xl font-bold text-slate-900">{profile.name}</h2>
-                                <p className="text-slate-500">Patient Account</p>
+                                <h2 className="text-xl font-bold text-slate-900">{profile.name || 'Your Name'}</h2>
+                                <p className="text-slate-500">{profile.email}</p>
                                 
                                 <div className="mt-4 flex items-center justify-center gap-2">
                                     <Shield size={14} className="text-green-500" />
@@ -248,7 +379,9 @@ const Profile = () => {
                                         onChange={(e) => setTempProfile({ ...tempProfile, phone: e.target.value })}
                                     />
                                 ) : (
-                                    <p className="text-slate-900 font-medium">{profile.phone}</p>
+                                    <p className="text-slate-900 font-medium">
+                                        {profile.phone || <span className="text-slate-400 italic">Not set</span>}
+                                    </p>
                                 )}
                             </div>
 
@@ -264,9 +397,13 @@ const Profile = () => {
                                     />
                                 ) : (
                                     <p className="text-slate-900 font-medium">
-                                        {new Date(profile.dateOfBirth).toLocaleDateString('en-US', { 
-                                            year: 'numeric', month: 'long', day: 'numeric' 
-                                        })}
+                                        {profile.dateOfBirth ? (
+                                            new Date(profile.dateOfBirth).toLocaleDateString('en-US', { 
+                                                year: 'numeric', month: 'long', day: 'numeric' 
+                                            })
+                                        ) : (
+                                            <span className="text-slate-400 italic">Not set</span>
+                                        )}
                                     </p>
                                 )}
                             </div>
@@ -279,9 +416,12 @@ const Profile = () => {
                                     <Input 
                                         value={tempProfile.address}
                                         onChange={(e) => setTempProfile({ ...tempProfile, address: e.target.value })}
+                                        placeholder="Enter your address"
                                     />
                                 ) : (
-                                    <p className="text-slate-900 font-medium">{profile.address}</p>
+                                    <p className="text-slate-900 font-medium">
+                                        {profile.address || <span className="text-slate-400 italic">Not set</span>}
+                                    </p>
                                 )}
                             </div>
                         </CardContent>
@@ -295,19 +435,34 @@ const Profile = () => {
                         </CardHeader>
                         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <Label>Blood Type</Label>
-                                {isEditing ? (
+                                <Label className="flex items-center gap-2">
+                                    Blood Type
+                                    {!canEditBloodType && (
+                                        <span className="flex items-center gap-1 text-xs text-amber-600 font-normal">
+                                            <Lock size={12} /> Locked
+                                        </span>
+                                    )}
+                                </Label>
+                                {isEditing && canEditBloodType ? (
                                     <select 
                                         className="flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                                         value={tempProfile.bloodType}
                                         onChange={(e) => setTempProfile({ ...tempProfile, bloodType: e.target.value })}
                                     >
+                                        <option value="">Select blood type</option>
                                         {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(type => (
                                             <option key={type} value={type}>{type}</option>
                                         ))}
                                     </select>
+                                ) : isEditing && !canEditBloodType ? (
+                                    <div className="flex h-10 w-full items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 cursor-not-allowed">
+                                        {profile.bloodType}
+                                        <span className="ml-auto text-xs text-slate-400">(Cannot be changed)</span>
+                                    </div>
                                 ) : (
-                                    <p className="text-slate-900 font-medium">{profile.bloodType}</p>
+                                    <p className="text-slate-900 font-medium">
+                                        {profile.bloodType || <span className="text-slate-400 italic">Not set</span>}
+                                    </p>
                                 )}
                             </div>
 
@@ -321,11 +476,15 @@ const Profile = () => {
                                     />
                                 ) : (
                                     <div className="flex flex-wrap gap-2">
-                                        {profile.allergies.split(',').map((allergy, i) => (
-                                            <span key={i} className="px-2 py-1 bg-red-50 text-red-700 text-sm rounded-md font-medium">
-                                                {allergy.trim()}
-                                            </span>
-                                        ))}
+                                        {profile.allergies && profile.allergies.trim() ? (
+                                            profile.allergies.split(',').filter(a => a.trim()).map((allergy, i) => (
+                                                <span key={i} className="px-2 py-1 bg-red-50 text-red-700 text-sm rounded-md font-medium">
+                                                    {allergy.trim()}
+                                                </span>
+                                            ))
+                                        ) : (
+                                            <span className="text-slate-400 italic">None specified</span>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -339,7 +498,9 @@ const Profile = () => {
                                         placeholder="Name - Phone Number"
                                     />
                                 ) : (
-                                    <p className="text-slate-900 font-medium">{profile.emergencyContact}</p>
+                                    <p className="text-slate-900 font-medium">
+                                        {profile.emergencyContact || <span className="text-slate-400 italic">Not set</span>}
+                                    </p>
                                 )}
                             </div>
                         </CardContent>

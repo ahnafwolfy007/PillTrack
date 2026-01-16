@@ -127,9 +127,15 @@ const MobileSidebar = ({ isOpen, onClose, userRole = 'patient' }) => {
                         <div className="p-4 border-t border-slate-100">
                             <div className="flex items-center gap-3 mb-4">
                                 <img
-                                    src="https://i.pravatar.cc/150?u=a042581f4e29026704d"
+                                    src={(() => {
+                                        const localImage = localStorage.getItem('profileImage');
+                                        if (localImage) return localImage;
+                                        if (user?.avatarUrl) return user.avatarUrl;
+                                        const seed = user?.name || user?.email || 'user';
+                                        return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(seed)}&backgroundColor=6366f1`;
+                                    })()}
                                     alt="User"
-                                    className="w-10 h-10 rounded-full object-cover"
+                                    className="w-10 h-10 rounded-full object-cover bg-slate-100"
                                 />
                                 <div>
                                     <p className="font-medium text-slate-800">{user?.name || 'Alex Johnson'}</p>

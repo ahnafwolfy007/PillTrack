@@ -92,6 +92,8 @@ public class MedicationService {
                 .startDate(request.getStartDate() != null ? request.getStartDate() : LocalDate.now())
                 .endDate(request.getEndDate())
                 .inventory(request.getCurrentQuantity() != null ? request.getCurrentQuantity() : 0)
+                .quantityPerDose(request.getQuantityPerDose() != null ? request.getQuantityPerDose() : 1)
+                .reminderMinutesBefore(request.getReminderMinutesBefore() != null ? request.getReminderMinutesBefore() : 5)
                 .imageUrl(request.getImageUrl())
                 .status(MedicationStatus.ACTIVE)
                 .build();
@@ -100,7 +102,11 @@ public class MedicationService {
         
         // Create reminders if reminder times are provided
         if (request.getReminderTimes() != null && !request.getReminderTimes().isEmpty()) {
-            reminderService.createRemindersForMedication(medication, request.getReminderTimes());
+            reminderService.createRemindersForMedication(
+                    medication, 
+                    request.getReminderTimes(),
+                    request.getReminderMinutesBefore()
+            );
         }
         
         log.info("Medication created: {} for user: {}", medication.getName(), user.getEmail());
@@ -145,7 +151,11 @@ public class MedicationService {
         
         // Update reminders if provided
         if (request.getReminderTimes() != null) {
-            reminderService.updateRemindersForMedication(medication, request.getReminderTimes());
+            reminderService.updateRemindersForMedication(
+                    medication, 
+                    request.getReminderTimes(),
+                    request.getReminderMinutesBefore()
+            );
         }
         
         medication = medicationRepository.save(medication);
@@ -225,6 +235,16 @@ public class MedicationService {
         // Calculate isLowStock with default threshold of 7 days
         boolean isLowStock = medication.isLowStock(7);
         
+        // Get reminder minutes before from first active reminder or from entity
+        Integer reminderMinutes = medication.getReminderMinutesBefore();
+        if (reminderMinutes == null || reminderMinutes == 0) {
+            reminderMinutes = medication.getReminders().stream()
+                    .filter(r -> r.getIsActive() && r.getMinutesBefore() != null)
+                    .map(r -> r.getMinutesBefore())
+                    .findFirst()
+                    .orElse(0);
+        }
+        
         return MedicationResponse.builder()
                 .id(medication.getId())
                 .name(medication.getName())
@@ -245,6 +265,8 @@ public class MedicationService {
                 .imageUrl(medication.getImageUrl())
                 .isActive(medication.getStatus() == MedicationStatus.ACTIVE)
                 .reminderTimes(reminderTimes)
+                .reminderMinutesBefore(reminderMinutes)
+                .quantityPerDose(medication.getQuantityPerDose() != null ? medication.getQuantityPerDose() : 1)
                 .createdAt(medication.getCreatedAt())
                 .updatedAt(medication.getUpdatedAt())
                 .build();

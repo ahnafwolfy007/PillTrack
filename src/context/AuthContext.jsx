@@ -30,8 +30,15 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
+            console.log('AuthContext: Attempting login for:', email);
             const response = await authService.login(email, password);
+            console.log('AuthContext: Login response:', response);
             const { user, token, refreshToken, roles } = response.data;
+            
+            if (!token) {
+                console.error('AuthContext: No token received');
+                return { success: false, error: 'No token received from server' };
+            }
             
             localStorage.setItem('token', token);
             localStorage.setItem('refreshToken', refreshToken);
@@ -40,16 +47,25 @@ export const AuthProvider = ({ children }) => {
             setUser({ ...user, roles });
             setIsAuthenticated(true);
             
+            console.log('AuthContext: Login successful');
             return { success: true, user: { ...user, roles } };
         } catch (error) {
-            return { success: false, error: error.message };
+            console.error('AuthContext: Login error:', error);
+            return { success: false, error: error.message || 'Login failed' };
         }
     };
 
     const register = async (userData) => {
         try {
+            console.log('AuthContext: Attempting registration for:', userData.email);
             const response = await authService.register(userData);
+            console.log('AuthContext: Register response:', response);
             const { user, token, refreshToken, roles } = response.data;
+            
+            if (!token) {
+                console.error('AuthContext: No token received');
+                return { success: false, error: 'No token received from server' };
+            }
             
             localStorage.setItem('token', token);
             localStorage.setItem('refreshToken', refreshToken);
@@ -58,9 +74,11 @@ export const AuthProvider = ({ children }) => {
             setUser({ ...user, roles });
             setIsAuthenticated(true);
             
+            console.log('AuthContext: Registration successful');
             return { success: true, user: { ...user, roles } };
         } catch (error) {
-            return { success: false, error: error.message };
+            console.error('AuthContext: Register error:', error);
+            return { success: false, error: error.message || 'Registration failed' };
         }
     };
 

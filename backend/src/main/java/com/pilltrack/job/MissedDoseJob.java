@@ -27,8 +27,8 @@ public class MissedDoseJob implements Job {
     public void execute(JobExecutionContext context) throws JobExecutionException {
         log.info("Running missed dose check job...");
         
-        // Find all pending doses that are more than 2 hours past scheduled time
-        LocalDateTime cutoffTime = LocalDateTime.now().minusHours(2);
+        // Find all pending doses that are more than 6 hours past scheduled time
+        LocalDateTime cutoffTime = LocalDateTime.now().minusHours(6);
         
         int markedCount = 0;
         

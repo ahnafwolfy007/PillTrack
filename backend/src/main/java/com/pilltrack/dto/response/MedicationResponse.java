@@ -36,6 +36,8 @@ public class MedicationResponse {
     private String imageUrl;
     private Boolean isActive;
     private List<String> reminderTimes;
+    private Integer reminderMinutesBefore;
+    private Integer quantityPerDose;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

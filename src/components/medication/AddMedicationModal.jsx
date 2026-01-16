@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, ChevronLeft, Check, Pill, Clock, Bell, Package, Loader2 } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Check, Pill, Clock, Bell, Package, Loader2, Calendar } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
@@ -24,11 +24,18 @@ const typeMapping = {
     other: 'OTHER'
 };
 
-const AddMedicationModal = ({ isOpen, onClose, onAdd }) => {
+// Reverse mapping for edit mode
+const reverseTypeMapping = Object.fromEntries(
+    Object.entries(typeMapping).map(([k, v]) => [v, k])
+);
+
+const AddMedicationModal = ({ isOpen, onClose, onAdd, editMedication = null }) => {
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
-    const [formData, setFormData] = useState({
+    const isEditMode = !!editMedication;
+    
+    const getInitialFormData = () => ({
         name: '',
         type: 'tablet',
         dosage: '',
@@ -37,10 +44,50 @@ const AddMedicationModal = ({ isOpen, onClose, onAdd }) => {
         times: ['08:00'],
         withFood: false,
         reminderEnabled: true,
-        reminderMinutes: 15,
+        reminderMinutes: 5, // Default: remind 5 minutes before dose time
         currentStock: '',
-        lowStockAlert: 10
+        lowStockAlert: 10,
+        quantityPerDose: 1,
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: '',
+        instructions: '',
+        prescribingDoctor: ''
     });
+    
+    const [formData, setFormData] = useState(getInitialFormData());
+    
+    // Populate form when editing
+    useEffect(() => {
+        if (editMedication && isOpen) {
+            // Parse strength to get dosage and unit
+            const strengthMatch = editMedication.strength?.match(/^(\d+(?:\.\d+)?)\s*(\w+)$/);
+            const dosage = strengthMatch ? strengthMatch[1] : editMedication.strength || '';
+            const unit = strengthMatch ? strengthMatch[2] : 'mg';
+            
+            setFormData({
+                name: editMedication.name || '',
+                type: reverseTypeMapping[editMedication.type] || 'tablet',
+                dosage: dosage,
+                unit: unit,
+                frequency: editMedication.frequency || 'daily',
+                times: editMedication.reminderTimes?.length > 0 ? editMedication.reminderTimes : ['08:00'],
+                withFood: editMedication.instructions?.toLowerCase().includes('food') || false,
+                reminderEnabled: editMedication.reminderTimes?.length > 0,
+                reminderMinutes: editMedication.reminderMinutesBefore || 15,
+                currentStock: editMedication.currentQuantity?.toString() || '',
+                lowStockAlert: editMedication.refillThreshold || 10,
+                quantityPerDose: editMedication.quantityPerDose || 1,
+                startDate: editMedication.startDate || new Date().toISOString().split('T')[0],
+                endDate: editMedication.endDate || '',
+                instructions: editMedication.instructions || '',
+                prescribingDoctor: editMedication.prescribingDoctor || ''
+            });
+        } else if (!isOpen) {
+            setFormData(getInitialFormData());
+            setCurrentStep(0);
+            setError('');
+        }
+    }, [editMedication, isOpen]);
 
     const updateField = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -73,37 +120,42 @@ const AddMedicationModal = ({ isOpen, onClose, onAdd }) => {
             setError('');
             try {
                 // Build request matching backend MedicationRequest DTO
+                // Map frequency names to numbers (doses per day)
+                const frequencyMap = {
+                    'daily': '1',
+                    'twice': '2',
+                    'three': '3',
+                    'four': '4',
+                    'as-needed': '1'
+                };
+                
                 const request = {
                     name: formData.name,
                     type: typeMapping[formData.type] || 'OTHER',
                     strength: `${formData.dosage}${formData.unit}`,
-                    frequency: formData.frequency,
-                    instructions: formData.withFood ? 'Take with food' : 'Take as directed',
+                    frequency: frequencyMap[formData.frequency] || String(formData.times.length),
+                    instructions: formData.instructions || (formData.withFood ? 'Take with food' : 'Take as directed'),
                     currentQuantity: parseInt(formData.currentStock) || 0,
                     refillThreshold: parseInt(formData.lowStockAlert) || 10,
-                    reminderTimes: formData.times,
-                    startDate: new Date().toISOString().split('T')[0]
+                    quantityPerDose: parseInt(formData.quantityPerDose) || 1,
+                    reminderTimes: formData.reminderEnabled ? formData.times : [],
+                    reminderMinutesBefore: formData.reminderEnabled ? formData.reminderMinutes : 0,
+                    startDate: formData.startDate || new Date().toISOString().split('T')[0],
+                    endDate: formData.endDate || null,
+                    prescribingDoctor: formData.prescribingDoctor || null
                 };
 
-                await medicationService.create(request);
+                if (isEditMode && editMedication?.id) {
+                    await medicationService.update(editMedication.id, request);
+                } else {
+                    await medicationService.create(request);
+                }
                 onAdd?.(formData);
                 onClose();
                 setCurrentStep(0);
-                setFormData({
-                    name: '',
-                    type: 'tablet',
-                    dosage: '',
-                    unit: 'mg',
-                    frequency: 'daily',
-                    times: ['08:00'],
-                    withFood: false,
-                    reminderEnabled: true,
-                    reminderMinutes: 15,
-                    currentStock: '',
-                    lowStockAlert: 10
-                });
+                setFormData(getInitialFormData());
             } catch (err) {
-                setError(err.message || 'Failed to add medication');
+                setError(err.message || `Failed to ${isEditMode ? 'update' : 'add'} medication`);
             } finally {
                 setIsSubmitting(false);
             }
@@ -129,7 +181,9 @@ const AddMedicationModal = ({ isOpen, onClose, onAdd }) => {
                 {/* Header */}
                 <div className="p-6 border-b border-slate-100">
                     <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-xl font-bold text-slate-900">Add New Medication</h2>
+                        <h2 className="text-xl font-bold text-slate-900">
+                            {isEditMode ? 'Edit Medication' : 'Add New Medication'}
+                        </h2>
                         <Button variant="ghost" size="icon" onClick={onClose}>
                             <X size={20} />
                         </Button>
@@ -304,6 +358,32 @@ const AddMedicationModal = ({ isOpen, onClose, onAdd }) => {
                                     </div>
                                 </div>
 
+                                {/* Start and End Dates */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="flex items-center gap-2">
+                                            <Calendar size={14} /> Start Date
+                                        </Label>
+                                        <Input
+                                            type="date"
+                                            value={formData.startDate}
+                                            onChange={(e) => updateField('startDate', e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="flex items-center gap-2">
+                                            <Calendar size={14} /> End Date
+                                        </Label>
+                                        <Input
+                                            type="date"
+                                            value={formData.endDate}
+                                            onChange={(e) => updateField('endDate', e.target.value)}
+                                            min={formData.startDate}
+                                        />
+                                        <p className="text-xs text-slate-400">Optional - leave empty for ongoing</p>
+                                    </div>
+                                </div>
+
                                 <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl">
                                     <input
                                         type="checkbox"
@@ -393,14 +473,29 @@ const AddMedicationModal = ({ isOpen, onClose, onAdd }) => {
                                 exit={{ opacity: 0, x: -20 }}
                                 className="space-y-4"
                             >
-                                <div className="space-y-2">
-                                    <Label>Current Stock (number of doses)</Label>
-                                    <Input
-                                        type="number"
-                                        placeholder="e.g., 30"
-                                        value={formData.currentStock}
-                                        onChange={(e) => updateField('currentStock', e.target.value)}
-                                    />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Current Stock (total pills/units)</Label>
+                                        <Input
+                                            type="number"
+                                            placeholder="e.g., 30"
+                                            value={formData.currentStock}
+                                            onChange={(e) => updateField('currentStock', e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Quantity Per Dose</Label>
+                                        <Input
+                                            type="number"
+                                            placeholder="1"
+                                            min="1"
+                                            value={formData.quantityPerDose}
+                                            onChange={(e) => updateField('quantityPerDose', parseInt(e.target.value) || 1)}
+                                        />
+                                        <p className="text-xs text-slate-500">
+                                            How many pills/units you take each time
+                                        </p>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-2">
@@ -416,6 +511,21 @@ const AddMedicationModal = ({ isOpen, onClose, onAdd }) => {
                                     </p>
                                 </div>
 
+                                {/* Estimated Duration */}
+                                {formData.currentStock && formData.quantityPerDose && formData.times.length > 0 && (
+                                    <Card className="bg-blue-50 border-blue-200">
+                                        <CardContent className="p-4">
+                                            <div className="flex items-center gap-2 text-blue-700">
+                                                <Clock size={16} />
+                                                <span className="font-medium">Estimated Duration</span>
+                                            </div>
+                                            <p className="text-sm text-blue-600 mt-1">
+                                                {Math.floor(parseInt(formData.currentStock) / (formData.quantityPerDose * formData.times.length))} days of medication
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                )}
+
                                 {/* Summary */}
                                 <Card className="bg-gradient-to-br from-primary/5 to-blue-50 border-none">
                                     <CardContent className="p-4">
@@ -430,12 +540,18 @@ const AddMedicationModal = ({ isOpen, onClose, onAdd }) => {
                                                 <span className="font-medium">{formData.dosage}{formData.unit} ({formData.type})</span>
                                             </div>
                                             <div className="flex justify-between">
+                                                <span className="text-slate-500">Quantity/Dose</span>
+                                                <span className="font-medium">{formData.quantityPerDose || 1} pill{formData.quantityPerDose > 1 ? 's' : ''}/dose</span>
+                                            </div>
+                                            <div className="flex justify-between">
                                                 <span className="text-slate-500">Frequency</span>
                                                 <span className="font-medium capitalize">{formData.frequency}, {formData.times.length}x</span>
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-slate-500">Reminders</span>
-                                                <span className="font-medium">{formData.reminderEnabled ? 'Enabled' : 'Disabled'}</span>
+                                                <span className="font-medium">
+                                                    {formData.reminderEnabled ? `${formData.reminderMinutes} min before` : 'Disabled'}
+                                                </span>
                                             </div>
                                         </div>
                                     </CardContent>
@@ -467,7 +583,7 @@ const AddMedicationModal = ({ isOpen, onClose, onAdd }) => {
                                     <Loader2 size={16} className="animate-spin" /> Saving...
                                 </>
                             ) : currentStep === STEPS.length - 1 ? (
-                                'Add Medication'
+                                isEditMode ? 'Update Medication' : 'Add Medication'
                             ) : (
                                 <>Continue <ChevronRight size={16} /></>
                             )}

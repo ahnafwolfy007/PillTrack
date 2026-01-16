@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -17,74 +17,31 @@ public class MedicineResponse {
     
     private Long id;
     
-    // Basic Information
+    // Basic Information from CSV
+    private Integer brandId;
     private String brandName;
-    private String genericName;
+    private String type;  // allopathic, herbal, etc.
     private String slug;
+    private String dosageForm;
+    private String genericName;
     private String strength;
-    private String form;
-    private String composition;
-    
-    // Classification
-    private MedicineCategoryResponse category;
-    private String therapeuticClass;
     
     // Manufacturer
     private MedicineManufacturerResponse manufacturer;
+    private String manufacturerName;
     
-    // Medical Information
-    private String description;
-    private String indications;
-    private String dosageAdults;
-    private String dosageChildren;
-    private String dosageElderly;
-    private String administration;
+    // Packaging & Pricing from CSV
+    private String unitQuantity;
+    private String containerType;
+    private BigDecimal unitPrice;
+    private BigDecimal packQuantity;
+    private BigDecimal packPrice;
     
-    // Safety Information
-    private String sideEffects;
-    private String contraindications;
-    private String warnings;
-    private String precautions;
-    private String drugInteractions;
-    private String foodInteractions;
-    
-    // Pregnancy & Lactation
-    private String pregnancyCategory;
-    private String pregnancyInfo;
-    private String lactationInfo;
-    
-    // Overdose & Storage
-    private String overdoseInfo;
-    private String storageConditions;
-    
-    // Prescription Information
-    private Boolean requiresPrescription;
-    private String scheduleType;
-    
-    // Pharmacology
-    private String pharmacology;
-    private String pharmacokinetics;
-    private String halfLife;
-    private String onsetOfAction;
-    private String durationOfAction;
-    
-    // Packaging Information
-    private String packSizes;
-    private String color;
-    private String shape;
-    private String imprint;
-    
-    // SEO & Search
-    private String keywords;
-    private String imageUrl;
-    
-    // Status & Metadata
+    // Status
     private Boolean isActive;
-    private LocalDate approvalDate;
-    private String approvalAuthority;
     private Integer viewCount;
     
-    // Alternatives
+    // Alternatives (medicines with same generic name)
     private List<MedicineAlternativeResponse> alternatives;
     
     private LocalDateTime createdAt;

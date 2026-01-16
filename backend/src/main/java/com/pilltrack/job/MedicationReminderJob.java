@@ -60,24 +60,39 @@ public class MedicationReminderJob implements Job {
                 continue;
             }
             
-            // Parse schedule info to get reminder time
-            LocalTime reminderTime;
+            // Parse schedule info to get dose time
+            LocalTime doseTime;
             try {
-                reminderTime = LocalTime.parse(reminder.getScheduleInfo());
+                doseTime = LocalTime.parse(reminder.getScheduleInfo());
             } catch (Exception e) {
                 log.warn("Could not parse schedule info: {} for reminder: {}", 
                         reminder.getScheduleInfo(), reminder.getId());
                 continue;
             }
             
-            // Check if current time is within +/- 5 minutes of reminder time
-            if (reminderTime.isBefore(currentTime.minusMinutes(5)) || 
-                reminderTime.isAfter(currentTime.plusMinutes(5))) {
+            // Calculate reminder time (5 minutes before dose time)
+            int minutesBefore = reminder.getMinutesBefore() != null ? reminder.getMinutesBefore() : 5;
+            LocalTime reminderTriggerTime = doseTime.minusMinutes(minutesBefore);
+            
+            // Check if current time is within the reminder window (reminder trigger time to dose time)
+            // We trigger if current time is within ±2.5 minutes of the reminder trigger time
+            // This ensures the 5-minute Quartz interval catches the reminder
+            if (currentTime.isBefore(reminderTriggerTime.minusMinutes(3)) || 
+                currentTime.isAfter(reminderTriggerTime.plusMinutes(3))) {
                 continue;
             }
             
-            // Create dose log for this time
-            LocalDateTime scheduledTime = LocalDateTime.of(today, reminderTime);
+            // Create dose log for this time (at the actual dose time, not reminder time)
+            LocalDateTime scheduledTime = LocalDateTime.of(today, doseTime);
+            
+            // Check if dose log already exists for this medication and time to prevent duplicates
+            boolean doseLogExists = doseLogRepository.existsByMedicationIdAndScheduledTime(
+                    medication.getId(), scheduledTime);
+            
+            if (doseLogExists) {
+                log.debug("Dose log already exists for medication: {} at {}", medication.getName(), scheduledTime);
+                continue;
+            }
             
             DoseLog doseLog = DoseLog.builder()
                     .medication(medication)
@@ -88,13 +103,13 @@ public class MedicationReminderJob implements Job {
             
             log.info("Created dose log for medication: {} at {}", medication.getName(), scheduledTime);
             
-            // Send reminder notification
+            // Send reminder notification (use doseTime to tell user when to take medication)
             try {
                 notificationService.sendMedicationReminder(
                         medication.getUser(),
                         medication.getName(),
                         medication.getDosage(),
-                        reminderTime
+                        doseTime
                 );
                 processedCount++;
                 log.info("Sent reminder for medication: {} to user: {}", 

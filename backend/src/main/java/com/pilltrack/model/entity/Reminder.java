@@ -43,6 +43,11 @@ public class Reminder {
     @Builder.Default
     private Boolean isActive = true;
     
+    // Minutes before scheduled time to trigger reminder
+    @Column(columnDefinition = "INTEGER DEFAULT 5")
+    @Builder.Default
+    private Integer minutesBefore = 5;
+    
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

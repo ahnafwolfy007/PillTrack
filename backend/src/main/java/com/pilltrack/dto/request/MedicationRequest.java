@@ -63,4 +63,12 @@ public class MedicationRequest {
     
     // Reminder times in HH:mm format
     private List<String> reminderTimes;
+    
+    // Minutes before the scheduled time to send reminder (5, 10, 15, 30)
+    @Min(value = 0, message = "Reminder minutes must be non-negative")
+    private Integer reminderMinutesBefore;
+    
+    // Number of pills/units taken per dose
+    @Min(value = 1, message = "Quantity per dose must be at least 1")
+    private Integer quantityPerDose;
 }

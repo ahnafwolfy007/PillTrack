@@ -49,6 +49,14 @@ public class Medication {
     private Integer inventory = 0;
     
     @Column(nullable = false)
+    @Builder.Default
+    private Integer quantityPerDose = 1;
+    
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer reminderMinutesBefore = 5; // Default to 5 minutes before dose time
+
+    @Column(nullable = false)
     private LocalDate startDate;
     
     @Column

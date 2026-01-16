@@ -6,15 +6,22 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Pill, Clock, Check, X, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
+import { Pill, Clock, Check, X, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Loader2, SkipForward, MapPin } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { doseLogService, medicationService } from '../../services/api';
+import { 
+    getTodayKeyInDhaka, 
+    formatTime12hInDhaka, 
+    getCurrentTimeInDhaka,
+    TIMEZONE 
+} from '../../utils/timezone';
 
 const Calendar = () => {
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [currentView, setCurrentView] = useState('dayGridMonth');
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [adherenceStats, setAdherenceStats] = useState({ percentage: 0, taken: 0, skipped: 0, missed: 0, total: 0 });
 
     useEffect(() => {
         fetchCalendarData();
@@ -23,74 +30,157 @@ const Calendar = () => {
     const fetchCalendarData = async () => {
         setLoading(true);
         try {
+            // Get date range for past 30 days and next 30 days (using Dhaka timezone)
+            const today = getTodayKeyInDhaka();
+            const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            
             // Fetch medications and dose logs
             const [medsResponse, logsResponse] = await Promise.all([
-                medicationService.getAll().catch(() => ({ success: false })),
-                doseLogService.getRange(
-                    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-                ).catch(() => ({ success: false }))
+                medicationService.getAll().catch(() => ({ success: false, data: [] })),
+                doseLogService.getRange(startDate, endDate).catch(() => ({ success: false, data: [] }))
             ]);
 
             const calendarEvents = [];
+            let takenCount = 0;
+            let skippedCount = 0;
+            let missedCount = 0;
+            let totalCount = 0;
 
             // Add dose log events
-            if (logsResponse.success && logsResponse.data) {
-                const logs = Array.isArray(logsResponse.data) ? logsResponse.data : logsResponse.data.content || [];
-                logs.forEach(log => {
-                    const statusColor = log.status === 'TAKEN' ? '#10B981' : 
-                                       log.status === 'MISSED' ? '#EF4444' : 
-                                       log.status === 'SKIPPED' ? '#F59E0B' : '#94A3B8';
-                    calendarEvents.push({
-                        id: `log-${log.id}`,
-                        title: log.medicationName || 'Medication',
-                        start: log.scheduledTime || log.takenAt,
-                        backgroundColor: statusColor,
-                        borderColor: statusColor,
-                        extendedProps: {
-                            status: log.status?.toLowerCase() || 'scheduled',
-                            dose: log.dosage || '',
-                            type: log.medicationType || 'Medication'
-                        }
-                    });
+            const logs = logsResponse.success ? (Array.isArray(logsResponse.data) ? logsResponse.data : []) : [];
+            logs.forEach(log => {
+                const statusColor = log.status === 'TAKEN' ? '#10B981' : 
+                                   log.status === 'MISSED' ? '#EF4444' : 
+                                   log.status === 'SKIPPED' ? '#F59E0B' : '#94A3B8';
+                
+                if (log.status === 'TAKEN') takenCount++;
+                if (log.status === 'SKIPPED') skippedCount++;
+                if (log.status === 'MISSED') missedCount++;
+                totalCount++;
+                
+                calendarEvents.push({
+                    id: `log-${log.id}`,
+                    title: log.medicationName || 'Medication',
+                    start: log.scheduledTime || log.takenTime,
+                    backgroundColor: statusColor,
+                    borderColor: statusColor,
+                    extendedProps: {
+                        status: log.status?.toLowerCase() || 'scheduled',
+                        dose: log.dosage || '',
+                        type: log.medicationType || 'Medication',
+                        logId: log.id
+                    }
                 });
-            }
+            });
 
-            // Add upcoming scheduled doses from medications
-            if (medsResponse.success && medsResponse.data) {
-                const meds = Array.isArray(medsResponse.data) ? medsResponse.data : medsResponse.data.content || [];
-                meds.filter(m => m.status === 'ACTIVE').forEach(med => {
-                    // Generate schedule for next 30 days based on frequency
-                    const scheduleTimes = med.scheduleTimes || ['08:00'];
-                    const today = new Date();
-                    for (let i = 0; i < 30; i++) {
-                        const date = new Date(today);
-                        date.setDate(date.getDate() + i);
-                        const dateStr = date.toISOString().split('T')[0];
+            // Add upcoming scheduled doses from medications with reminders
+            const meds = medsResponse.success ? (Array.isArray(medsResponse.data) ? medsResponse.data : []) : [];
+            const { hours: currentHour, minutes: currentMin } = getCurrentTimeInDhaka();
+            const currentTimeStr = `${currentHour.toString().padStart(2, '0')}:${currentMin.toString().padStart(2, '0')}`;
+            
+            meds.filter(m => m.status === 'ACTIVE' && m.isActive).forEach(med => {
+                // Use reminderTimes from medication
+                const reminderTimes = med.reminderTimes || [];
+                if (reminderTimes.length === 0) return;
+                
+                for (let i = 0; i < 30; i++) {
+                    const date = new Date();
+                    date.setDate(date.getDate() + i);
+                    const dateStr = date.toLocaleDateString('en-CA', { timeZone: TIMEZONE });
+                    
+                    reminderTimes.forEach((time, idx) => {
+                        // Skip past times for today
+                        if (dateStr === today && time <= currentTimeStr) return;
                         
-                        scheduleTimes.forEach((time, idx) => {
+                        // Check if this dose already has a log
+                        const hasLog = logs.some(log => {
+                            const logDate = log.scheduledTime?.substring(0, 10);
+                            const logTime = log.scheduledTime?.substring(11, 16);
+                            return logDate === dateStr && logTime === time && log.medicationId === med.id;
+                        });
+                        
+                        if (!hasLog) {
                             calendarEvents.push({
                                 id: `sched-${med.id}-${dateStr}-${idx}`,
                                 title: med.name,
                                 start: `${dateStr}T${time}:00`,
-                                backgroundColor: '#94A3B8',
-                                borderColor: '#94A3B8',
+                                backgroundColor: '#3B82F6',
+                                borderColor: '#3B82F6',
                                 extendedProps: {
-                                    status: 'scheduled',
-                                    dose: med.dosage,
-                                    type: med.type || 'Medication'
+                                    status: 'upcoming',
+                                    dose: med.strength,
+                                    type: med.type || 'Medication',
+                                    medicationId: med.id
                                 }
                             });
-                        });
-                    }
-                });
-            }
+                        }
+                    });
+                }
+            });
+
+            // Calculate adherence
+            const adherencePercentage = totalCount > 0 ? Math.round((takenCount / totalCount) * 100) : 100;
+            setAdherenceStats({
+                percentage: adherencePercentage,
+                taken: takenCount,
+                skipped: skippedCount,
+                missed: missedCount,
+                total: totalCount
+            });
 
             setEvents(calendarEvents);
         } catch (error) {
             console.error('Failed to fetch calendar data:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleMarkTaken = async (event) => {
+        try {
+            if (event.logId) {
+                await doseLogService.markAsTaken(event.logId);
+            } else if (event.medicationId) {
+                // For upcoming/scheduled doses that don't have a log yet
+                // Format time as ISO string for the backend
+                const scheduledTime = event.time instanceof Date 
+                    ? event.time.toISOString() 
+                    : event.time;
+                await doseLogService.log({
+                    medicationId: event.medicationId,
+                    scheduledTime: scheduledTime,
+                    status: 'TAKEN',
+                    notes: 'Taken by user'
+                });
+            }
+            fetchCalendarData();
+            setSelectedEvent(null);
+        } catch (error) {
+            console.error('Failed to mark dose as taken:', error);
+        }
+    };
+
+    const handleMarkSkipped = async (event) => {
+        try {
+            if (event.logId) {
+                await doseLogService.markAsSkipped(event.logId, 'Skipped by user');
+            } else if (event.medicationId) {
+                // For upcoming/scheduled doses that don't have a log yet
+                const scheduledTime = event.time instanceof Date 
+                    ? event.time.toISOString() 
+                    : event.time;
+                await doseLogService.log({
+                    medicationId: event.medicationId,
+                    scheduledTime: scheduledTime,
+                    status: 'SKIPPED',
+                    notes: 'Skipped by user'
+                });
+            }
+            fetchCalendarData();
+            setSelectedEvent(null);
+        } catch (error) {
+            console.error('Failed to mark dose as skipped:', error);
         }
     };
 
@@ -266,12 +356,12 @@ const Calendar = () => {
                                         </span>
                                     </div>
 
-                                    {selectedEvent.status === 'upcoming' && (
+                                    {(selectedEvent.status === 'upcoming' || selectedEvent.status === 'scheduled') && (
                                         <div className="flex gap-2 pt-2">
-                                            <Button size="sm" className="flex-1 gap-1">
+                                            <Button size="sm" className="flex-1 gap-1" onClick={() => handleMarkTaken(selectedEvent)}>
                                                 <Check size={14} /> Take
                                             </Button>
-                                            <Button size="sm" variant="outline" className="flex-1 gap-1">
+                                            <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={() => handleMarkSkipped(selectedEvent)}>
                                                 <X size={14} /> Skip
                                             </Button>
                                         </div>
@@ -283,12 +373,43 @@ const Calendar = () => {
 
                     {/* Adherence Stats */}
                     <Card className="border-none shadow-md bg-gradient-to-br from-green-50 to-emerald-50">
-                        <CardContent className="p-6 text-center">
-                            <div className="text-4xl font-bold text-green-600 mb-1">92%</div>
-                            <div className="text-sm text-green-700 font-medium">This Month's Adherence</div>
-                            <div className="mt-4 text-xs text-green-600">
-                                23 of 25 doses taken on time
+                        <CardContent className="p-6">
+                            <div className="text-center mb-4">
+                                <div className="text-4xl font-bold text-green-600 mb-1">{adherenceStats.percentage}%</div>
+                                <div className="text-sm text-green-700 font-medium">Monthly Adherence</div>
                             </div>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between items-center">
+                                    <span className="flex items-center gap-2 text-green-600">
+                                        <Check size={14} /> Taken
+                                    </span>
+                                    <span className="font-bold">{adherenceStats.taken}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="flex items-center gap-2 text-amber-600">
+                                        <SkipForward size={14} /> Skipped
+                                    </span>
+                                    <span className="font-bold">{adherenceStats.skipped}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="flex items-center gap-2 text-red-600">
+                                        <X size={14} /> Missed
+                                    </span>
+                                    <span className="font-bold">{adherenceStats.missed}</span>
+                                </div>
+                                <div className="border-t pt-2 mt-2 flex justify-between items-center">
+                                    <span className="text-slate-600">Total Doses</span>
+                                    <span className="font-bold">{adherenceStats.total}</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    
+                    {/* Timezone Info */}
+                    <Card className="border-none shadow-sm bg-blue-50">
+                        <CardContent className="p-4 flex items-center gap-2 text-sm text-blue-700">
+                            <MapPin size={16} />
+                            <span>Timezone: Dhaka, Bangladesh (UTC+6)</span>
                         </CardContent>
                     </Card>
                 </div>

@@ -7,8 +7,6 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table(name = "medicine_categories")
@@ -48,7 +46,6 @@ public class MedicineCategory {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
     
-    @OneToMany(mappedBy = "category")
-    @Builder.Default
-    private List<Medicine> medicines = new ArrayList<>();
+    // Note: Medicines no longer have a direct category relationship
+    // Categories can be used for shop medicines or custom organization
 }

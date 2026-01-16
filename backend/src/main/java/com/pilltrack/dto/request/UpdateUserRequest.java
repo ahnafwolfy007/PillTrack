@@ -15,10 +15,10 @@ import java.time.LocalDate;
 @Builder
 public class UpdateUserRequest {
     
-    @Size(min = 2, max = 50, message = "First name must be between 2 and 50 characters")
+    @Size(max = 50, message = "First name must not exceed 50 characters")
     private String firstName;
     
-    @Size(min = 2, max = 50, message = "Last name must be between 2 and 50 characters")
+    @Size(max = 50, message = "Last name must not exceed 50 characters")
     private String lastName;
     
     @Size(max = 20, message = "Phone number must not exceed 20 characters")
@@ -43,4 +43,13 @@ public class UpdateUserRequest {
     
     @Size(max = 500, message = "Avatar URL must not exceed 500 characters")
     private String avatarUrl;
+    
+    @Size(max = 5, message = "Blood type must not exceed 5 characters")
+    private String bloodType;
+    
+    @Size(max = 1000, message = "Allergies must not exceed 1000 characters")
+    private String allergies;
+    
+    @Size(max = 200, message = "Emergency contact must not exceed 200 characters")
+    private String emergencyContact;
 }

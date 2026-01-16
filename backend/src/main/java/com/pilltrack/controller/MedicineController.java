@@ -1,17 +1,14 @@
 package com.pilltrack.controller;
 
-import com.pilltrack.dto.request.MedicineRequest;
 import com.pilltrack.dto.response.*;
 import com.pilltrack.service.MedicineService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -29,7 +26,7 @@ public class MedicineController {
     @GetMapping
     @Operation(summary = "Get all medicines with pagination")
     public ResponseEntity<ApiResponse<PageResponse<MedicineSummaryResponse>>> getAllMedicines(
-            @PageableDefault(size = 20, sort = "name", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 20, sort = "brandName", direction = Sort.Direction.ASC) Pageable pageable) {
         PageResponse<MedicineSummaryResponse> response = medicineService.getAllMedicines(pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -49,7 +46,7 @@ public class MedicineController {
     }
     
     @GetMapping("/search")
-    @Operation(summary = "Search medicines by name")
+    @Operation(summary = "Search medicines by name, generic, or strength")
     public ResponseEntity<ApiResponse<PageResponse<MedicineSummaryResponse>>> searchMedicines(
             @RequestParam String query,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -57,12 +54,12 @@ public class MedicineController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
     
-    @GetMapping("/category/{categoryId}")
-    @Operation(summary = "Get medicines by category")
-    public ResponseEntity<ApiResponse<PageResponse<MedicineSummaryResponse>>> getMedicinesByCategory(
-            @PathVariable Long categoryId,
+    @GetMapping("/type/{type}")
+    @Operation(summary = "Get medicines by type (allopathic, herbal, etc.)")
+    public ResponseEntity<ApiResponse<PageResponse<MedicineSummaryResponse>>> getMedicinesByType(
+            @PathVariable String type,
             @PageableDefault(size = 20) Pageable pageable) {
-        PageResponse<MedicineSummaryResponse> response = medicineService.getMedicinesByCategory(categoryId, pageable);
+        PageResponse<MedicineSummaryResponse> response = medicineService.getMedicinesByType(type, pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
     
@@ -84,43 +81,50 @@ public class MedicineController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
     
+    @GetMapping("/dosage-form/{dosageForm}")
+    @Operation(summary = "Get medicines by dosage form (Tablet, Syrup, etc.)")
+    public ResponseEntity<ApiResponse<PageResponse<MedicineSummaryResponse>>> getMedicinesByDosageForm(
+            @PathVariable String dosageForm,
+            @PageableDefault(size = 20) Pageable pageable) {
+        PageResponse<MedicineSummaryResponse> response = medicineService.getMedicinesByDosageForm(dosageForm, pageable);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+    
     @GetMapping("/{id}/alternatives")
-    @Operation(summary = "Get medicine alternatives")
+    @Operation(summary = "Get medicine alternatives (same generic)")
     public ResponseEntity<ApiResponse<List<MedicineAlternativeResponse>>> getMedicineAlternatives(
             @PathVariable Long id) {
         List<MedicineAlternativeResponse> response = medicineService.getMedicineAlternatives(id);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
     
-    @GetMapping("/otc")
-    @Operation(summary = "Get OTC medicines")
-    public ResponseEntity<ApiResponse<PageResponse<MedicineSummaryResponse>>> getOtcMedicines(
+    @GetMapping("/popular")
+    @Operation(summary = "Get popular medicines")
+    public ResponseEntity<ApiResponse<PageResponse<MedicineSummaryResponse>>> getPopularMedicines(
             @PageableDefault(size = 20) Pageable pageable) {
-        PageResponse<MedicineSummaryResponse> response = medicineService.getOtcMedicines(pageable);
+        PageResponse<MedicineSummaryResponse> response = medicineService.getPopularMedicines(pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
     
-    @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    @SecurityRequirement(name = "bearerAuth")
-    @Operation(summary = "Create a new medicine (Admin only)")
-    public ResponseEntity<ApiResponse<MedicineResponse>> createMedicine(
-            @Valid @RequestBody MedicineRequest request) {
-        MedicineResponse response = medicineService.createMedicine(request);
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.created(response, "Medicine created successfully"));
+    @GetMapping("/types")
+    @Operation(summary = "Get all medicine types (categories)")
+    public ResponseEntity<ApiResponse<List<String>>> getAllTypes() {
+        List<String> types = medicineService.getAllTypes();
+        return ResponseEntity.ok(ApiResponse.success(types));
     }
     
-    @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @SecurityRequirement(name = "bearerAuth")
-    @Operation(summary = "Update a medicine (Admin only)")
-    public ResponseEntity<ApiResponse<MedicineResponse>> updateMedicine(
-            @PathVariable Long id,
-            @Valid @RequestBody MedicineRequest request) {
-        MedicineResponse response = medicineService.updateMedicine(id, request);
-        return ResponseEntity.ok(ApiResponse.success(response, "Medicine updated successfully"));
+    @GetMapping("/dosage-forms")
+    @Operation(summary = "Get all dosage forms")
+    public ResponseEntity<ApiResponse<List<String>>> getAllDosageForms() {
+        List<String> forms = medicineService.getAllDosageForms();
+        return ResponseEntity.ok(ApiResponse.success(forms));
+    }
+    
+    @GetMapping("/generics")
+    @Operation(summary = "Get all generic names")
+    public ResponseEntity<ApiResponse<List<String>>> getAllGenericNames() {
+        List<String> generics = medicineService.getAllGenericNames();
+        return ResponseEntity.ok(ApiResponse.success(generics));
     }
     
     @DeleteMapping("/{id}")
