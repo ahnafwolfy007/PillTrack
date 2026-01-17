@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -7,19 +7,58 @@
 @layer base {
   body {
     @apply font-sans bg-background text-slate-900 overflow-x-hidden antialiased;
+    @apply dark:bg-slate-900 dark:text-slate-100;
+  }
+
+  /* Smooth transitions for theme changes */
+  *,
+  *::before,
+  *::after {
+    @apply transition-colors duration-200;
   }
 }
 
 @layer utilities {
   .glass-panel {
     @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-xl;
+    @apply dark:bg-slate-800/30 dark:border-slate-700/50;
   }
-  
+
   .glass-card {
-      @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-sm hover:shadow-md transition-all duration-300;
+    @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-sm hover:shadow-md transition-all duration-300;
+    @apply dark:bg-slate-800/70 dark:border-slate-700/30;
   }
 
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-dark;
+  }
+
+  /* Dark mode card styles */
+  .card-dark {
+    @apply dark:bg-slate-800 dark:border-slate-700;
+  }
+
+  /* Dark mode input styles */
+  .input-dark {
+    @apply dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-400;
+    @apply dark:focus:border-primary dark:focus:ring-primary/20;
+  }
+
+  /* Dark mode button styles */
+  .btn-dark {
+    @apply dark:hover:bg-slate-700;
+  }
+
+  /* Scrollbar styling for dark mode */
+  .dark ::-webkit-scrollbar {
+    @apply w-2;
+  }
+
+  .dark ::-webkit-scrollbar-track {
+    @apply bg-slate-800;
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    @apply bg-slate-600 rounded-full hover:bg-slate-500;
   }
 }

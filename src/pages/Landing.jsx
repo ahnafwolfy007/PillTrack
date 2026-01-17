@@ -32,13 +32,13 @@ const FeatureCard = ({ icon: Icon, title, description, delay }) => (
         viewport={{ once: true }}
         transition={{ delay, duration: 0.5 }}
     >
-        <Card className="h-full hover:shadow-xl transition-all border-none shadow-md bg-white/80 backdrop-blur-sm hover:-translate-y-2">
+        <Card className="h-full hover:shadow-xl transition-all border-none shadow-md bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm hover:-translate-y-2">
             <CardContent className="p-8 flex flex-col items-start px-6">
                 <div className="p-4 bg-primary/10 rounded-2xl mb-6 text-primary">
                     <Icon size={32} />
                 </div>
-                <h3 className="text-xl font-bold mb-3 text-slate-800">{title}</h3>
-                <p className="text-slate-600 leading-relaxed">{description}</p>
+                <h3 className="text-xl font-bold mb-3 text-slate-800 dark:text-slate-100">{title}</h3>
+                <p className="text-slate-600 dark:text-slate-400 leading-relaxed">{description}</p>
             </CardContent>
         </Card>
     </motion.div>
@@ -46,7 +46,7 @@ const FeatureCard = ({ icon: Icon, title, description, delay }) => (
 
 const Landing = () => {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 relative overflow-hidden">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 relative overflow-hidden">
             {/* Background Elements */}
             <FloatingPill delay={0} x={100} y={150} rotate={15} />
             <FloatingPill delay={2} x={800} y={200} rotate={-15} />
@@ -72,7 +72,7 @@ const Landing = () => {
                 </motion.div>
 
                 <motion.h1
-                    className="text-5xl md:text-7xl font-bold mb-8 text-slate-900 tracking-tight leading-tight"
+                    className="text-5xl md:text-7xl font-bold mb-8 text-slate-900 dark:text-white tracking-tight leading-tight"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
@@ -81,7 +81,7 @@ const Landing = () => {
                 </motion.h1>
 
                 <motion.p
-                    className="text-lg md:text-xl text-slate-600 max-w-2xl mb-12 leading-relaxed"
+                    className="text-lg md:text-xl text-slate-600 dark:text-slate-300 max-w-2xl mb-12 leading-relaxed"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
@@ -135,8 +135,8 @@ const Landing = () => {
             <section className="py-24 relative z-10">
                 <div className="container mx-auto px-4">
                     <div className="text-center mb-20">
-                        <h2 className="text-4xl font-bold text-slate-900 mb-6">Complete Ecosystem</h2>
-                        <p className="text-xl text-slate-600 max-w-2xl mx-auto">Everything you need to manage your prescriptions and health supplements.</p>
+                        <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-6">Complete Ecosystem</h2>
+                        <p className="text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">Everything you need to manage your prescriptions and health supplements.</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-8">

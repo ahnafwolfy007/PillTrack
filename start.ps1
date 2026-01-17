@@ -7,9 +7,9 @@ Write-Host "           PillTrack Application               " -ForegroundColor Cy
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Set JAVA_HOME
-$env:JAVA_HOME = "C:\Program Files\JetBrains\IntelliJ IDEA 2025.2.4\jbr"
-Write-Host "[INFO] JAVA_HOME set to: $env:JAVA_HOME" -ForegroundColor Yellow
+# JAVA_HOME setup removed to use system default
+# $env:JAVA_HOME = "C:\Program Files\JetBrains\IntelliJ IDEA 2025.2.4\jbr"
+# Write-Host "[INFO] JAVA_HOME set to: $env:JAVA_HOME" -ForegroundColor Yellow
 
 # Get the script directory
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
