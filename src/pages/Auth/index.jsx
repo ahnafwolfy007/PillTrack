@@ -133,10 +133,8 @@ const Auth = () => {
 
                 <div className="relative z-10">
                     <div className="flex items-center gap-2 mb-2 font-bold text-2xl">
-                        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                            <div className="w-4 h-4 bg-white rounded-full"></div>
-                        </div>
-                        PillTrack
+                        <img src="/icon.png" alt="PillTrack" className="w-12 h-9 rounded-lg object-cover" />
+                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-100">PillTrack</span>
                     </div>
                     <p className="text-blue-100">Your Personal Healthcare Ecosystem</p>
                 </div>

@@ -4,6 +4,10 @@ spring:
   application:
     name: PillTrack
   
+  # Lazy initialization for faster startup
+  main:
+    lazy-initialization: true
+  
   # Database Configuration (PostgreSQL - Aiven Cloud)
   datasource:
     url: jdbc:postgresql://pg-21f07101-edusyncuiu.i.aivencloud.com:16537/defaultdb?sslmode=require
@@ -25,10 +29,14 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
+        format_sql: false
         jdbc:
           time_zone: UTC
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
     open-in-view: false
+    defer-datasource-initialization: true
   
   # Email Configuration
   mail:
@@ -92,6 +100,8 @@ app:
   password-reset-token-expiry: 3600000  # 1 hour
   default-timezone: Asia/Dhaka
   default-currency: BDT
+  # Data seeding - set to false to skip heavy seeding on startup
+  seed-demo-data: false
 
 # SSLCommerz Configuration
 sslcommerz:
@@ -122,11 +132,12 @@ file:
 # Logging Configuration
 logging:
   level:
-    root: INFO
-    com.pilltrack: DEBUG
-    org.springframework.security: INFO
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    root: WARN
+    com.pilltrack: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.boot: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
   file:
@@ -141,3 +152,4 @@ springdoc:
     operationsSorter: method
     tagsSorter: alpha
   show-actuator: false
+

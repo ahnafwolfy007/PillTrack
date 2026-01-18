@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Pill, Calendar, ShoppingBag, ShoppingCart, Settings, LogOut, Package, User, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Pill, Calendar, ShoppingBag, ShoppingCart, Settings, LogOut, Package, User, BookOpen, Stethoscope, MapPin } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context';
@@ -41,10 +41,8 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
         >
             <div className="h-16 flex items-center px-6 border-b border-slate-50">
                 <div className="flex items-center gap-2 font-bold text-xl text-slate-800">
-                    <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
-                        <Pill size={18} />
-                    </div>
-                    {!collapsed && <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-dark">PillTrack</span>}
+                    <img src="/icon.png" alt="PillTrack" className="w-10 h-8 rounded-lg object-cover" />
+                    {!collapsed && <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600">PillTrack</span>}
                 </div>
             </div>
 
@@ -57,6 +55,8 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                 <SidebarLink to="/dashboard/medications" icon={Pill} label="Medications" collapsed={collapsed} />
                 <SidebarLink to="/dashboard/calendar" icon={Calendar} label="Schedule" collapsed={collapsed} />
                 <SidebarLink to="/medbase" icon={BookOpen} label="MedBase" collapsed={collapsed} />
+                <SidebarLink to="/find-doctor" icon={Stethoscope} label="Find Doctor" collapsed={collapsed} />
+                <SidebarLink to="/pharmacy-finder" icon={MapPin} label="Find Pharmacy" collapsed={collapsed} />
 
                 <div className="mt-8 mb-2 px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                     {!collapsed ? "Marketplace" : "..."}

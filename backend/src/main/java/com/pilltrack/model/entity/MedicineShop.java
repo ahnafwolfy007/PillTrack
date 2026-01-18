@@ -59,8 +59,18 @@ public class MedicineShop {
     @Column(length = 100)
     private String area;
     
+    @Column(length = 100)
+    private String ward;
+    
     @Column(length = 20)
     private String postalCode;
+    
+    // Geolocation for pharmacy finder
+    @Column
+    private Double latitude;
+    
+    @Column
+    private Double longitude;
     
     @Column(nullable = false, length = 100)
     @Builder.Default

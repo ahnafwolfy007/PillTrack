@@ -16,6 +16,8 @@ public interface MedicineManufacturerRepository extends JpaRepository<MedicineMa
     
     Optional<MedicineManufacturer> findByName(String name);
     
+    Optional<MedicineManufacturer> findBySlug(String slug);
+    
     boolean existsByName(String name);
     
     List<MedicineManufacturer> findByIsActiveTrueOrderByNameAsc();

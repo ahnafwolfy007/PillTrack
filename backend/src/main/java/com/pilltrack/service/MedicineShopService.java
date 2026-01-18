@@ -102,7 +102,10 @@ public class MedicineShopService {
         shop.setAddress(request.getAddress());
         shop.setCity(request.getCity());
         shop.setArea(request.getArea());
+        shop.setWard(request.getWard());
         shop.setPostalCode(request.getPostalCode());
+        shop.setLatitude(request.getLatitude());
+        shop.setLongitude(request.getLongitude());
         shop.setPhone(request.getPhone());
         shop.setAlternatePhone(request.getAlternatePhone());
         shop.setEmail(request.getEmail());
@@ -139,7 +142,10 @@ public class MedicineShopService {
         shop.setAddress(request.getAddress());
         shop.setCity(request.getCity());
         shop.setArea(request.getArea());
+        shop.setWard(request.getWard());
         shop.setPostalCode(request.getPostalCode());
+        shop.setLatitude(request.getLatitude());
+        shop.setLongitude(request.getLongitude());
         shop.setPhone(request.getPhone());
         shop.setAlternatePhone(request.getAlternatePhone());
         shop.setEmail(request.getEmail());
@@ -204,8 +210,11 @@ public class MedicineShopService {
                 .address(shop.getAddress())
                 .city(shop.getCity())
                 .area(shop.getArea())
+                .ward(shop.getWard())
                 .postalCode(shop.getPostalCode())
                 .country(shop.getCountry())
+                .latitude(shop.getLatitude())
+                .longitude(shop.getLongitude())
                 .phone(shop.getPhone())
                 .alternatePhone(shop.getAlternatePhone())
                 .email(shop.getEmail())

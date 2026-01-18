@@ -73,6 +73,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/shops/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/shop-medicines/**").permitAll()
                         
+                        // Pharmacy Finder endpoints (public)
+                        .requestMatchers("/api/v1/pharmacy-finder/**").permitAll()
+                        
+                        // Doctor endpoints (public)
+                        .requestMatchers("/api/v1/doctors/**").permitAll()
+                        
                         // Admin endpoints
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         

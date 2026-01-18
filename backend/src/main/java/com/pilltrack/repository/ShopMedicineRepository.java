@@ -87,4 +87,29 @@ public interface ShopMedicineRepository extends JpaRepository<ShopMedicine, Long
     long countByShopId(Long shopId);
     
     long countByShopIdAndIsAvailableTrue(Long shopId);
+    
+    // Search for medicines by name across all shops with location data - eagerly fetch shop and medicine
+    @Query("SELECT sm FROM ShopMedicine sm " +
+           "JOIN FETCH sm.shop s " +
+           "JOIN FETCH sm.medicine m " +
+           "WHERE sm.isAvailable = true AND sm.stockQuantity > 0 " +
+           "AND s.isActive = true AND s.latitude IS NOT NULL AND s.longitude IS NOT NULL " +
+           "AND (LOWER(m.brandName) LIKE LOWER(CONCAT('%', :medicineName, '%')) OR " +
+           "LOWER(m.genericName) LIKE LOWER(CONCAT('%', :medicineName, '%')))")
+    List<ShopMedicine> findByMedicineNameWithShopLocation(@Param("medicineName") String medicineName);
+    
+    // Get distinct medicine names for autocomplete suggestions
+    @Query("SELECT DISTINCT m.brandName FROM ShopMedicine sm " +
+           "JOIN sm.medicine m " +
+           "JOIN sm.shop s " +
+           "WHERE sm.isAvailable = true AND sm.stockQuantity > 0 " +
+           "AND s.isActive = true AND s.latitude IS NOT NULL AND s.longitude IS NOT NULL " +
+           "AND (LOWER(m.brandName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(m.genericName) LIKE LOWER(CONCAT('%', :query, '%'))) " +
+           "ORDER BY m.brandName")
+    List<String> findMedicineNameSuggestions(@Param("query") String query);
+    
+    // Find all medicines available in a specific shop with stock
+    @Query("SELECT sm FROM ShopMedicine sm WHERE sm.shop.id = :shopId AND sm.isAvailable = true AND sm.stockQuantity > 0")
+    List<ShopMedicine> findAvailableByShopId(@Param("shopId") Long shopId);
 }

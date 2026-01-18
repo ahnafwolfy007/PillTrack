@@ -44,8 +44,15 @@ public class MedicineShopRequest {
     @Size(max = 100, message = "Area must not exceed 100 characters")
     private String area;
     
+    @Size(max = 100, message = "Ward must not exceed 100 characters")
+    private String ward;
+    
     @Size(max = 20, message = "Postal code must not exceed 20 characters")
     private String postalCode;
+    
+    // Geolocation
+    private Double latitude;
+    private Double longitude;
     
     // Business Information
     @Size(max = 50, message = "License number must not exceed 50 characters")

@@ -59,10 +59,8 @@ const MobileSidebar = ({ isOpen, onClose, userRole = 'patient' }) => {
                         {/* Header */}
                         <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100">
                             <div className="flex items-center gap-2 font-bold text-xl text-slate-800">
-                                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
-                                    <Pill size={18} />
-                                </div>
-                                <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-700">
+                                <img src="/icon.png" alt="PillTrack" className="w-10 h-8 rounded-lg object-cover" />
+                                <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600">
                                     PillTrack
                                 </span>
                             </div>

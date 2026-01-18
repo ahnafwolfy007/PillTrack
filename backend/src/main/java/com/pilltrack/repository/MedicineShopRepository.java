@@ -58,4 +58,16 @@ public interface MedicineShopRepository extends JpaRepository<MedicineShop, Long
     
     // Count verified shops
     long countByIsVerifiedTrue();
+    
+    // Find all shops with latitude and longitude (for map display)
+    @Query("SELECT s FROM MedicineShop s WHERE s.latitude IS NOT NULL AND s.longitude IS NOT NULL AND s.isActive = true")
+    List<MedicineShop> findAllWithLocation();
+    
+    // Find shops by area or ward
+    @Query("SELECT s FROM MedicineShop s WHERE s.isActive = true AND (LOWER(s.area) = LOWER(:area) OR LOWER(s.ward) = LOWER(:ward))")
+    List<MedicineShop> findByAreaOrWard(@Param("area") String area, @Param("ward") String ward);
+    
+    // Find all verified/active shops with location for pharmacy finder
+    @Query("SELECT s FROM MedicineShop s WHERE s.status = 'VERIFIED' AND s.isActive = true AND s.latitude IS NOT NULL AND s.longitude IS NOT NULL")
+    List<MedicineShop> findAllActiveWithLocation();
 }

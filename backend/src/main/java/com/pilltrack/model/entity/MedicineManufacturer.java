@@ -27,6 +27,9 @@ public class MedicineManufacturer {
     @Column(nullable = false, unique = true, length = 150)
     private String name;
     
+    @Column(unique = true, length = 200)
+    private String slug;
+    
     @Column(length = 100)
     private String country;
     

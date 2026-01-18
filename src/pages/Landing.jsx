@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '../components/ui/Button';
 import { Link } from 'react-router-dom';
-import { Pill, Activity, ShieldCheck, Truck, ArrowRight, BookOpen } from 'lucide-react';
+import { Pill, Activity, ShieldCheck, Truck, ArrowRight, BookOpen, MapPin } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 
 const FloatingPill = ({ delay, x, y, rotate }) => (
@@ -47,6 +47,21 @@ const FeatureCard = ({ icon: Icon, title, description, delay }) => (
 const Landing = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 relative overflow-hidden">
+            {/* Navigation Bar */}
+            <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-white/50">
+                <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+                    <Link to="/" className="flex items-center gap-2 font-bold text-xl text-slate-800">
+                        <img src="/icon.png" alt="PillTrack" className="w-10 h-8 rounded-lg object-cover" />
+                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600">PillTrack</span>
+                    </Link>
+                    <div className="flex items-center gap-4">
+                        <Link to="/auth?mode=register">
+                            <Button className="rounded-full">Get Started</Button>
+                        </Link>
+                    </div>
+                </div>
+            </nav>
+
             {/* Background Elements */}
             <FloatingPill delay={0} x={100} y={150} rotate={15} />
             <FloatingPill delay={2} x={800} y={200} rotate={-15} />
@@ -100,16 +115,7 @@ const Landing = () => {
                             Get Started Free <ArrowRight className="ml-2 h-5 w-5" />
                         </Button>
                     </Link>
-                    <Link to="/marketplace" className="w-full sm:w-auto">
-                        <Button variant="outline" size="lg" className="rounded-full px-8 h-14 text-lg w-full bg-white/50 backdrop-blur hover:bg-white border-white/60">
-                            Browse Medicines
-                        </Button>
-                    </Link>
-                    <Link to="/medbase" className="w-full sm:w-auto">
-                        <Button variant="outline" size="lg" className="rounded-full px-8 h-14 text-lg w-full bg-white/50 backdrop-blur hover:bg-white border-white/60 gap-2">
-                            <BookOpen className="h-5 w-5" /> MedBase
-                        </Button>
-                    </Link>
+                    
                 </motion.div>
 
                 {/* Hero Image Mockup Area */}
@@ -139,7 +145,7 @@ const Landing = () => {
                         <p className="text-xl text-slate-600 max-w-2xl mx-auto">Everything you need to manage your prescriptions and health supplements.</p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                         <FeatureCard
                             icon={Activity}
                             title="Smart Reminders"
@@ -151,6 +157,12 @@ const Landing = () => {
                             title="Verified Marketplace"
                             description="Purchase medicines directly from verified pharmacies. We ensure authenticity and quality control."
                             delay={0.4}
+                        />
+                        <FeatureCard
+                            icon={MapPin}
+                            title="Pharmacy Finder"
+                            description="Find the nearest pharmacy with your medicine using our interactive map with 50+ pharmacies in Dhaka."
+                            delay={0.5}
                         />
                         <FeatureCard
                             icon={Truck}

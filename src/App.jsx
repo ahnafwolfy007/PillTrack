@@ -15,6 +15,8 @@ import Cart from './pages/Cart/index';
 import ShopDashboard from './pages/Admin/ShopDashboard';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import MedBase from './pages/MedBase/index';
+import PharmacyFinder from './pages/PharmacyFinder/index';
+import FindDoctor from './pages/FindDoctor/index';
 import ReminderAlert from './components/common/ReminderAlert';
 
 function App() {
@@ -34,6 +36,8 @@ function App() {
               <Route path="/marketplace/:id" element={<MedicineDetail />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/medbase" element={<MedBase />} />
+              <Route path="/pharmacy-finder" element={<PharmacyFinder />} />
+              <Route path="/find-doctor" element={<FindDoctor />} />
 
               {/* Dashboard Routes (Patient) */}
               <Route path="/dashboard" element={<Layout />}>

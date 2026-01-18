@@ -32,8 +32,13 @@ public class MedicineShopResponse {
     private String address;
     private String city;
     private String area;
+    private String ward;
     private String postalCode;
     private String country;
+    
+    // Geolocation
+    private Double latitude;
+    private Double longitude;
     
     // Business
     private String licenseNumber;

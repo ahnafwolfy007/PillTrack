@@ -406,10 +406,8 @@ const MedBase = () => {
                             </Button>
                         </Link>
                         <div className="flex items-center gap-2 font-bold text-xl text-slate-800">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white">
-                                <BookOpen size={20} />
-                            </div>
-                            <span className="hidden sm:inline">MedBase</span>
+                            <img src="/icon.png" alt="PillTrack" className="w-10 h-8 rounded-lg object-cover" />
+                            <span className="hidden sm:inline bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600">MedBase</span>
                         </div>
                         <Link to="/dashboard">
                             <Button variant="outline" size="sm">Dashboard</Button>

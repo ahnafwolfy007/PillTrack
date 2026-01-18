@@ -546,4 +546,170 @@ export const adminService = {
     }
 };
 
+// ==================== PHARMACY FINDER SERVICE ====================
+export const pharmacyFinderService = {
+    /**
+     * Search for pharmacies with a specific medicine
+     * @param {number} latitude - User's latitude
+     * @param {number} longitude - User's longitude
+     * @param {string} medicine - Medicine name to search for
+     * @param {number} radiusKm - Search radius in kilometers (default 10)
+     * @param {number} maxResults - Maximum results to return (default 20)
+     */
+    searchNearestPharmacy: async (latitude, longitude, medicine, radiusKm = 10, maxResults = 20) => {
+        const response = await api.get('/pharmacy-finder/search', {
+            params: { latitude, longitude, medicine, radiusKm, maxResults }
+        });
+        return response.data.data;
+    },
+    
+    /**
+     * Search using POST for complex queries
+     */
+    searchNearestPharmacyPost: async (searchRequest) => {
+        const response = await api.post('/pharmacy-finder/search', searchRequest);
+        return response.data.data;
+    },
+    
+    /**
+     * Get all pharmacy locations for map display
+     */
+    getAllLocations: async () => {
+        const response = await api.get('/pharmacy-finder/locations');
+        return response.data.data;
+    },
+    
+    /**
+     * Get pharmacies near a specific location
+     * @param {number} latitude - Center latitude
+     * @param {number} longitude - Center longitude
+     * @param {number} radiusKm - Search radius in kilometers (default 5)
+     */
+    getNearbyPharmacies: async (latitude, longitude, radiusKm = 5) => {
+        const response = await api.get('/pharmacy-finder/nearby', {
+            params: { latitude, longitude, radiusKm }
+        });
+        return response.data.data;
+    },
+    
+    /**
+     * Get medicine name suggestions for autocomplete
+     * @param {string} query - Partial medicine name
+     */
+    getMedicineSuggestions: async (query) => {
+        if (!query || query.length < 2) return [];
+        const response = await api.get('/pharmacy-finder/suggestions', {
+            params: { query }
+        });
+        return response.data.data;
+    }
+};
+
+// ==================== DOCTOR SERVICE ====================
+export const doctorService = {
+    /**
+     * Get all doctors
+     */
+    getAll: async () => {
+        const response = await api.get('/doctors');
+        return response.data.data || response.data;
+    },
+    
+    /**
+     * Get doctor by ID
+     */
+    getById: async (id) => {
+        const response = await api.get(`/doctors/${id}`);
+        return response.data.data || response.data;
+    },
+    
+    /**
+     * Search doctors by name, specialty, or concentration
+     */
+    search: async (query) => {
+        const response = await api.get('/doctors/search', { params: { query } });
+        return response.data.data || response.data;
+    },
+    
+    /**
+     * Get doctors by specialty ID
+     */
+    getBySpecialty: async (specialtyId) => {
+        const response = await api.get(`/doctors/specialty/${specialtyId}`);
+        return response.data.data || response.data;
+    },
+    
+    /**
+     * Get doctors by specialty name (raw)
+     */
+    getBySpecialtyName: async (specialtyName) => {
+        const response = await api.get(`/doctors/by-specialty-name/${encodeURIComponent(specialtyName)}`);
+        return response.data.data || response.data;
+    },
+    
+    /**
+     * Get top rated doctors
+     */
+    getTopRated: async (limit = 10) => {
+        const response = await api.get('/doctors/top-rated', { params: { limit } });
+        return response.data.data || response.data;
+    },
+    
+    /**
+     * Get all available locations
+     */
+    getLocations: async () => {
+        const response = await api.get('/doctors/locations');
+        return response.data.data || response.data;
+    },
+    
+    /**
+     * Get doctors by location
+     */
+    getByLocation: async (location) => {
+        const response = await api.get(`/doctors/location/${encodeURIComponent(location)}`);
+        return response.data.data || response.data;
+    },
+    
+    /**
+     * Get all specialties (from Specialty table)
+     */
+    getSpecialties: async () => {
+        const response = await api.get('/doctors/specialties');
+        return response.data.data || response.data;
+    },
+    
+    /**
+     * Get all raw specialties with doctor counts (from Doctor table)
+     */
+    getRawSpecialties: async () => {
+        const response = await api.get('/doctors/raw-specialties');
+        return response.data.data || response.data;
+    },
+    
+    /**
+     * Search raw specialties
+     */
+    searchRawSpecialties: async (query) => {
+        const response = await api.get('/doctors/raw-specialties/search', { params: { query } });
+        return response.data.data || response.data;
+    },
+    
+    /**
+     * Search specialties
+     */
+    searchSpecialties: async (query) => {
+        const response = await api.get('/doctors/specialties/search', { params: { query } });
+        return response.data.data || response.data;
+    },
+    
+    /**
+     * Get doctor statistics
+     */
+    getStats: async () => {
+        const response = await api.get('/doctors/stats');
+        return response.data.data || response.data;
+    }
+};
+
 export default api;
