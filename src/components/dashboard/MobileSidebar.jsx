@@ -17,6 +17,9 @@ import {
   BookOpen,
   Stethoscope,
   Users,
+  CalendarCheck,
+  FileEdit,
+  MapPin,
 } from "lucide-react";
 import { cn } from "../../utils/cn";
 import { Button } from "../ui/Button";
@@ -114,6 +117,12 @@ const MobileSidebar = ({ isOpen, onClose, userRole = "patient" }) => {
                     onClick={onClose}
                   />
                   <MobileSidebarLink
+                    to="/doctor/appointments"
+                    icon={CalendarCheck}
+                    label="Appointments"
+                    onClick={onClose}
+                  />
+                  <MobileSidebarLink
                     to="/doctor/profile"
                     icon={Stethoscope}
                     label="Doctor Profile"
@@ -141,9 +150,33 @@ const MobileSidebar = ({ isOpen, onClose, userRole = "patient" }) => {
                     onClick={onClose}
                   />
                   <MobileSidebarLink
+                    to="/dashboard/appointments"
+                    icon={CalendarCheck}
+                    label="Appointments"
+                    onClick={onClose}
+                  />
+                  <MobileSidebarLink
+                    to="/dashboard/medication-requests"
+                    icon={FileEdit}
+                    label="Med Requests"
+                    onClick={onClose}
+                  />
+                  <MobileSidebarLink
                     to="/medbase"
                     icon={BookOpen}
                     label="MedBase"
+                    onClick={onClose}
+                  />
+                  <MobileSidebarLink
+                    to="/find-doctor"
+                    icon={Stethoscope}
+                    label="Find Doctor"
+                    onClick={onClose}
+                  />
+                  <MobileSidebarLink
+                    to="/pharmacy-finder"
+                    icon={MapPin}
+                    label="Find Pharmacy"
                     onClick={onClose}
                   />
                 </>
@@ -253,7 +286,9 @@ const MobileSidebar = ({ isOpen, onClose, userRole = "patient" }) => {
               <div className="flex items-center gap-3 mb-4">
                 <img
                   src={(() => {
-                    const localImage = localStorage.getItem("profileImage");
+                    // Use user-specific localStorage key
+                    const userId = user?.id || user?.email || 'default';
+                    const localImage = localStorage.getItem(`profileImage_${userId}`);
                     if (localImage) return localImage;
                     if (user?.avatarUrl) return user.avatarUrl;
                     const seed = user?.name || user?.email || "user";

@@ -16,6 +16,8 @@ import Calendar from "./pages/Dashboard/Calendar";
 import Orders from "./pages/Dashboard/Orders";
 import Profile from "./pages/Dashboard/Profile";
 import Settings from "./pages/Dashboard/Settings";
+import Appointments from "./pages/Dashboard/Appointments";
+import MedicationRequests from "./pages/Dashboard/MedicationRequests";
 import Cart from "./pages/Cart/index";
 import ShopDashboard from "./pages/Admin/ShopDashboard";
 import AdminDashboard from "./pages/Admin/AdminDashboard";
@@ -25,6 +27,8 @@ import FindDoctor from "./pages/FindDoctor/index";
 import ReminderAlert from "./components/common/ReminderAlert";
 import DoctorDashboard from "./pages/Doctor/Dashboard";
 import DoctorProfile from "./pages/Doctor/Profile";
+import DoctorPatients from "./pages/Doctor/Patients";
+import DoctorAppointments from "./pages/Doctor/Appointments";
 
 function App() {
   return (
@@ -52,6 +56,8 @@ function App() {
                   <Route index element={<Dashboard />} />
                   <Route path="medications" element={<Medications />} />
                   <Route path="calendar" element={<Calendar />} />
+                  <Route path="appointments" element={<Appointments />} />
+                  <Route path="medication-requests" element={<MedicationRequests />} />
                   <Route path="orders" element={<Orders />} />
                   <Route path="profile" element={<Profile />} />
                   <Route path="settings" element={<Settings />} />
@@ -70,7 +76,8 @@ function App() {
                 {/* Doctor Routes */}
                 <Route path="/doctor" element={<Layout />}>
                   <Route index element={<DoctorDashboard />} />
-                  <Route path="patients" element={<DoctorDashboard />} />
+                  <Route path="patients" element={<DoctorPatients />} />
+                  <Route path="appointments" element={<DoctorAppointments />} />
                   <Route path="profile" element={<DoctorProfile />} />
                 </Route>
 

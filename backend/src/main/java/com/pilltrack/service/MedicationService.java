@@ -97,6 +97,7 @@ public class MedicationService {
                 .dosage(request.getStrength() != null ? request.getStrength() : "N/A")
                 .frequency(frequencyInt)
                 .instructions(request.getInstructions())
+                .doctorAdvice(request.getDoctorAdvice())
                 .prescribedBy(request.getPrescribingDoctor())
                 .startDate(request.getStartDate() != null ? request.getStartDate() : LocalDate.now())
                 .endDate(request.getEndDate())
@@ -141,6 +142,9 @@ public class MedicationService {
         }
         if (request.getInstructions() != null) {
             medication.setInstructions(request.getInstructions());
+        }
+        if (request.getDoctorAdvice() != null) {
+            medication.setDoctorAdvice(request.getDoctorAdvice());
         }
         if (request.getPrescribingDoctor() != null) {
             medication.setPrescribedBy(request.getPrescribingDoctor());
@@ -229,6 +233,7 @@ public class MedicationService {
                 .dosage(request.getStrength() != null ? request.getStrength() : "N/A")
                 .frequency(frequencyInt)
                 .instructions(request.getInstructions())
+                .doctorAdvice(request.getDoctorAdvice())
                 .prescribedBy(request.getPrescribingDoctor() != null ? request.getPrescribingDoctor() : doctor.getName())
                 .startDate(request.getStartDate() != null ? request.getStartDate() : LocalDate.now())
                 .endDate(request.getEndDate())
@@ -277,6 +282,9 @@ public class MedicationService {
         }
         if (request.getInstructions() != null) {
             medication.setInstructions(request.getInstructions());
+        }
+        if (request.getDoctorAdvice() != null) {
+            medication.setDoctorAdvice(request.getDoctorAdvice());
         }
         if (request.getPrescribingDoctor() != null) {
             medication.setPrescribedBy(request.getPrescribingDoctor());
@@ -394,6 +402,7 @@ public class MedicationService {
                 .strength(medication.getDosage())
                 .frequency(String.valueOf(medication.getFrequency()))
                 .instructions(medication.getInstructions())
+                .doctorAdvice(medication.getDoctorAdvice())
                 .purpose(null) // Entity doesn't have purpose
                 .prescribingDoctor(medication.getPrescribedBy())
                 .startDate(medication.getStartDate())

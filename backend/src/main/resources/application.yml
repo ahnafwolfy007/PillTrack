@@ -1,5 +1,17 @@
 # PillTrack Backend Configuration
 
+server:
+  address: 0.0.0.0  # Listen on all network interfaces for LAN access
+  port: 8081
+  # Tomcat thread pool configuration for handling multiple concurrent requests
+  tomcat:
+    threads:
+      max: 200          # Maximum worker threads
+      min-spare: 20     # Minimum spare threads always kept running
+    max-connections: 10000  # Maximum connections
+    accept-count: 100   # Queue size when all threads are busy
+    connection-timeout: 20000  # Connection timeout in milliseconds
+
 spring:
   application:
     name: PillTrack
@@ -15,11 +27,26 @@ spring:
     password: AVNS_mp_gm0Sfdjzv9LazqwK
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
+      maximum-pool-size: 20      # Increased for concurrent access
+      minimum-idle: 10           # Increased minimum idle connections
       idle-timeout: 300000
       connection-timeout: 20000
       max-lifetime: 1200000
+      pool-name: PillTrackHikariPool
+
+  # Task execution for async processing
+  task:
+    execution:
+      pool:
+        core-size: 10            # Core thread pool size
+        max-size: 50             # Maximum thread pool size
+        queue-capacity: 100      # Queue capacity for pending tasks
+        keep-alive: 60s          # Keep alive time for idle threads
+      thread-name-prefix: pilltrack-async-
+    scheduling:
+      pool:
+        size: 5                  # Scheduled task thread pool size
+      thread-name-prefix: pilltrack-scheduled-
 
   # JPA Configuration
   jpa:
@@ -42,8 +69,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ${MAIL_USERNAME:your-email@gmail.com}
-    password: ${MAIL_PASSWORD:your-app-password}
+    username: ${MAIL_USERNAME:dishchord3@gmail.com}
+    password: ${MAIL_PASSWORD:brvk reyq zmpn bxzd}
     properties:
       mail:
         smtp:
@@ -82,11 +109,6 @@ spring:
             threadCount: 10
             threadPriority: 5
 
-# Server Configuration
-server:
-  port: 8081
-  # Note: Controllers already include /api/v1 in their paths, so no context-path needed
-
 # Application-level Configuration
 app:
   # JWT Configuration
@@ -98,6 +120,10 @@ app:
   reminder-snooze-options: 5,10,15,30
   max-login-attempts: 5
   password-reset-token-expiry: 3600000 # 1 hour
+  # OTP Configuration
+  otp:
+    length: 6
+    expiry-minutes: 10
   default-timezone: Asia/Dhaka
   default-currency: BDT
   # Data seeding - set to false to skip heavy seeding on startup

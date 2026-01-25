@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:8081/api/v1";
+// Use relative URL - Vite will proxy /api/* to the backend
+// This solves firewall issues since phone only connects to port 5173
+const API_BASE_URL = '/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -79,6 +81,7 @@ export const authService = {
           token: response.data.data.accessToken,
           refreshToken: response.data.data.refreshToken,
           roles: response.data.data.roles,
+          message: response.data.message,
         },
       };
     } catch (error) {
@@ -86,6 +89,134 @@ export const authService = {
       throw error;
     }
   },
+  
+  // Email verification with OTP
+  verifyEmail: async (email, otp) => {
+    try {
+      const response = await api.post("/auth/verify-email", { email, otp });
+      console.log("Verify email response:", response.data);
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      console.error("Verify email error:", error);
+      throw error;
+    }
+  },
+  
+  resendVerificationOtp: async (email) => {
+    try {
+      const response = await api.post("/auth/resend-verification-otp", { email });
+      console.log("Resend OTP response:", response.data);
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      console.error("Resend OTP error:", error);
+      throw error;
+    }
+  },
+  
+  // Pre-registration email verification
+  sendPreRegistrationOtp: async (email, name) => {
+    try {
+      const response = await api.post("/auth/pre-register/send-otp", { email, name });
+      console.log("Send pre-registration OTP response:", response.data);
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      console.error("Send pre-registration OTP error:", error);
+      throw error;
+    }
+  },
+  
+  verifyPreRegistrationOtp: async (email, otp) => {
+    try {
+      const response = await api.post("/auth/pre-register/verify-otp", { email, otp });
+      console.log("Verify pre-registration OTP response:", response.data);
+      return { 
+        success: true, 
+        verificationToken: response.data.data.verificationToken,
+        message: response.data.message 
+      };
+    } catch (error) {
+      console.error("Verify pre-registration OTP error:", error);
+      throw error;
+    }
+  },
+  
+  resendPreRegistrationOtp: async (email, name) => {
+    try {
+      const response = await api.post("/auth/pre-register/resend-otp", { email, name });
+      console.log("Resend pre-registration OTP response:", response.data);
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      console.error("Resend pre-registration OTP error:", error);
+      throw error;
+    }
+  },
+  
+  // Forgot password flow
+  forgotPassword: async (email) => {
+    try {
+      const response = await api.post("/auth/forgot-password", { email });
+      console.log("Forgot password response:", response.data);
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      throw error;
+    }
+  },
+  
+  verifyResetOtp: async (email, otp) => {
+    try {
+      const response = await api.post("/auth/verify-reset-otp", { email, otp });
+      console.log("Verify reset OTP response:", response.data);
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      console.error("Verify reset OTP error:", error);
+      throw error;
+    }
+  },
+  
+  resetPassword: async (email, otp, newPassword, confirmPassword) => {
+    try {
+      const response = await api.post("/auth/reset-password", { 
+        email, 
+        otp, 
+        newPassword, 
+        confirmPassword 
+      });
+      console.log("Reset password response:", response.data);
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      console.error("Reset password error:", error);
+      throw error;
+    }
+  },
+  
+  resendResetOtp: async (email) => {
+    try {
+      const response = await api.post("/auth/resend-reset-otp", { email });
+      console.log("Resend reset OTP response:", response.data);
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      console.error("Resend reset OTP error:", error);
+      throw error;
+    }
+  },
+  
+  // Change password (authenticated)
+  changePassword: async (currentPassword, newPassword, confirmPassword) => {
+    try {
+      const response = await api.post("/auth/change-password", { 
+        currentPassword, 
+        newPassword, 
+        confirmPassword 
+      });
+      console.log("Change password response:", response.data);
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      console.error("Change password error:", error);
+      throw error;
+    }
+  },
+  
   refreshToken: async (refreshToken) => {
     const response = await api.post("/auth/refresh", { refreshToken });
     return response.data.data;
@@ -764,6 +895,239 @@ export const doctorService = {
    */
   getStats: async () => {
     const response = await api.get("/doctors/stats");
+    return response.data.data || response.data;
+  },
+};
+
+// ==================== APPOINTMENT SERVICE ====================
+export const appointmentService = {
+  /**
+   * Book an appointment (for patients)
+   */
+  book: async (appointmentData) => {
+    const response = await api.post("/appointments", appointmentData);
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Get patient's appointments
+   */
+  getMyAppointments: async () => {
+    const response = await api.get("/appointments/my");
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Get patient's upcoming appointments
+   */
+  getMyUpcoming: async () => {
+    const response = await api.get("/appointments/my/upcoming");
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Get appointment by ID
+   */
+  getById: async (id) => {
+    const response = await api.get(`/appointments/${id}`);
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Cancel an appointment (for patients)
+   */
+  cancel: async (id, reason = "") => {
+    const response = await api.post(`/appointments/${id}/cancel`, null, {
+      params: { reason }
+    });
+    return response.data.data || response.data;
+  },
+
+  // ===== Doctor endpoints =====
+  
+  /**
+   * Get doctor's appointments
+   */
+  getDoctorAppointments: async () => {
+    const response = await api.get("/appointments/doctor");
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Get doctor's pending appointments
+   */
+  getDoctorPending: async () => {
+    const response = await api.get("/appointments/doctor/pending");
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Get doctor's upcoming appointments
+   */
+  getDoctorUpcoming: async () => {
+    const response = await api.get("/appointments/doctor/upcoming");
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Respond to appointment (approve/reject)
+   */
+  respond: async (id, approved, rejectionReason = null) => {
+    const response = await api.post(`/appointments/${id}/respond`, {
+      approve: approved,
+      rejectionReason
+    });
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Complete an appointment
+   */
+  complete: async (id, notes = "") => {
+    const response = await api.post(`/appointments/${id}/complete`, null, {
+      params: { notes }
+    });
+    return response.data.data || response.data;
+  },
+};
+
+// ==================== MODIFICATION REQUEST SERVICE (for patients) ====================
+export const modificationRequestService = {
+  /**
+   * Get patient's pending modification requests
+   */
+  getMyRequests: async () => {
+    const response = await api.get("/users/me/modification-requests");
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Respond to a modification request (accept/reject)
+   */
+  respond: async (requestId, accept, reason = null) => {
+    const response = await api.post(`/users/me/modification-requests/${requestId}/respond`, {
+      accept,
+      responseMessage: reason
+    });
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Get patient's assigned doctors
+   */
+  getMyDoctors: async () => {
+    const response = await api.get("/users/me/doctors");
+    return response.data.data || response.data;
+  },
+};
+
+// ==================== DOCTOR PORTAL SERVICE (for logged-in doctors) ====================
+export const doctorPortalService = {
+  /**
+   * Get current doctor's profile
+   */
+  getMyProfile: async () => {
+    const response = await api.get("/doctors/me/profile");
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Create or update doctor profile
+   */
+  upsertMyProfile: async (profileData) => {
+    const response = await api.post("/doctors/me/profile", profileData);
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Get doctor's linked patients
+   */
+  getMyPatients: async () => {
+    const response = await api.get("/doctors/me/patients");
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Add/link a patient to doctor
+   */
+  addPatient: async (patientId) => {
+    const response = await api.post(`/doctors/me/patients/${patientId}`);
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Remove/unlink a patient from doctor
+   */
+  removePatient: async (patientId) => {
+    const response = await api.delete(`/doctors/me/patients/${patientId}`);
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Get medications for a specific patient
+   */
+  getPatientMedications: async (patientId) => {
+    const response = await api.get(`/doctors/me/patients/${patientId}/medications`);
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Create medication for a patient
+   */
+  createPatientMedication: async (patientId, medicationData) => {
+    const response = await api.post(`/doctors/me/patients/${patientId}/medications`, medicationData);
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Update medication for a patient
+   */
+  updatePatientMedication: async (patientId, medicationId, medicationData) => {
+    const response = await api.put(`/doctors/me/patients/${patientId}/medications/${medicationId}`, medicationData);
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Check if doctor can modify patient's medications
+   */
+  canModifyPatientMedication: async (patientId) => {
+    const response = await api.get(`/doctors/me/patients/${patientId}/can-modify`);
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Create a modification request
+   */
+  createModificationRequest: async (requestData) => {
+    const response = await api.post("/doctors/me/modification-requests", requestData);
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Get doctor's modification requests
+   */
+  getMyModificationRequests: async () => {
+    const response = await api.get("/doctors/me/modification-requests");
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Get patient's dose logs by date range (for adherence)
+   */
+  getPatientDoseLogs: async (patientId, startDate, endDate) => {
+    const response = await api.get(`/doctors/me/patients/${patientId}/dose-logs`, {
+      params: { startDate, endDate }
+    });
+    return response.data.data || response.data;
+  },
+
+  /**
+   * Get patient's adherence statistics
+   */
+  getPatientAdherence: async (patientId, startDate, endDate) => {
+    const response = await api.get(`/doctors/me/patients/${patientId}/adherence`, {
+      params: { startDate, endDate }
+    });
     return response.data.data || response.data;
   },
 };

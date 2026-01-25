@@ -31,4 +31,7 @@ public class RegisterRequest {
     
     // Role for registration: USER, SHOP_OWNER, ADMIN
     private String role;
+    
+    // Token from pre-registration email verification
+    private String emailVerificationToken;
 }

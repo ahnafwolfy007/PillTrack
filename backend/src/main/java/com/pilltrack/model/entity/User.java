@@ -80,11 +80,23 @@ public class User implements UserDetails {
     @Column
     private String emailVerificationToken;
     
+    @Column(length = 6)
+    private String emailVerificationOtp;
+    
+    @Column
+    private LocalDateTime emailVerificationOtpExpiry;
+    
     @Column
     private String passwordResetToken;
     
+    @Column(length = 6)
+    private String passwordResetOtp;
+    
     @Column
     private LocalDateTime passwordResetTokenExpiry;
+    
+    @Column
+    private LocalDateTime passwordResetOtpExpiry;
     
     @CreatedDate
     @Column(nullable = false, updatable = false)

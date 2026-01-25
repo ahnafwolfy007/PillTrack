@@ -20,4 +20,5 @@ public class PatientSummaryResponse {
     private String avatarUrl;
     private Boolean isActive;
     private LocalDateTime assignedAt;
+    private Boolean canModifyMedication;
 }

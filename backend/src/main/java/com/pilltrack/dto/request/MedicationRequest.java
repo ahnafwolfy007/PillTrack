@@ -40,6 +40,9 @@ public class MedicationRequest {
     @Size(max = 500, message = "Instructions must not exceed 500 characters")
     private String instructions;
     
+    @Size(max = 1000, message = "Doctor advice must not exceed 1000 characters")
+    private String doctorAdvice;
+    
     @Size(max = 500, message = "Purpose must not exceed 500 characters")
     private String purpose;
     

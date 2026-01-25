@@ -16,6 +16,7 @@ import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -33,6 +34,7 @@ public class MedicationReminderJob implements Job {
     private final NotificationService notificationService;
     
     @Override
+    @Transactional
     public void execute(JobExecutionContext context) throws JobExecutionException {
         log.info("Running medication reminder job...");
         

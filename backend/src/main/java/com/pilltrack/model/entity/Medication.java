@@ -65,6 +65,9 @@ public class Medication {
     @Column(columnDefinition = "TEXT")
     private String instructions;
     
+    @Column(columnDefinition = "TEXT")
+    private String doctorAdvice;
+    
     @Column(length = 100)
     private String prescribedBy;
     

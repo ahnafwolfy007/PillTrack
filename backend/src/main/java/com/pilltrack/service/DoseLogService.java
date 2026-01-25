@@ -22,7 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -199,6 +201,46 @@ public class DoseLogService {
         }
         
         return (totalDoses * 100) / totalScheduled;
+    }
+
+    // ==================== Doctor Portal Methods ====================
+
+    @Transactional(readOnly = true)
+    public List<DoseLogResponse> getDoseLogsForPatient(Long patientId, LocalDate startDate, LocalDate endDate) {
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.atTime(LocalTime.MAX);
+        
+        return doseLogRepository.findByUserIdAndDateRange(patientId, start, end).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getAdherenceStatsForPatient(Long patientId, LocalDate startDate, LocalDate endDate) {
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.atTime(LocalTime.MAX);
+        
+        List<DoseLog> doseLogs = doseLogRepository.findByUserIdAndDateRange(patientId, start, end);
+        
+        long total = doseLogs.size();
+        long taken = doseLogs.stream().filter(d -> d.getStatus() == DoseStatus.TAKEN).count();
+        long skipped = doseLogs.stream().filter(d -> d.getStatus() == DoseStatus.SKIPPED).count();
+        long missed = doseLogs.stream().filter(d -> d.getStatus() == DoseStatus.MISSED).count();
+        long pending = doseLogs.stream().filter(d -> d.getStatus() == DoseStatus.PENDING).count();
+        
+        double adherencePercentage = total > 0 ? (taken * 100.0) / total : 100.0;
+        
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("total", total);
+        stats.put("taken", taken);
+        stats.put("skipped", skipped);
+        stats.put("missed", missed);
+        stats.put("pending", pending);
+        stats.put("adherencePercentage", Math.round(adherencePercentage * 100.0) / 100.0);
+        stats.put("startDate", startDate.toString());
+        stats.put("endDate", endDate.toString());
+        
+        return stats;
     }
     
     private DoseLog getDoseLogAndVerifyOwnership(Long id) {

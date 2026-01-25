@@ -12,6 +12,7 @@ import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -25,6 +26,7 @@ public class LowStockAlertJob implements Job {
     private final NotificationService notificationService;
     
     @Override
+    @Transactional
     public void execute(JobExecutionContext context) throws JobExecutionException {
         log.info("Running low stock alert job...");
         

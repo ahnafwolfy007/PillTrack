@@ -24,6 +24,7 @@ public class MedicationResponse {
     private String strength;
     private String frequency;
     private String instructions;
+    private String doctorAdvice;
     private String purpose;
     private String prescribingDoctor;
     private LocalDate startDate;

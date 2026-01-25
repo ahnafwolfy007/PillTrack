@@ -11,6 +11,7 @@ import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,6 +25,7 @@ public class MissedDoseJob implements Job {
     private final UserRepository userRepository;
     
     @Override
+    @Transactional
     public void execute(JobExecutionContext context) throws JobExecutionException {
         log.info("Running missed dose check job...");
         

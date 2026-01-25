@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -11,13 +11,14 @@ import {
   Package,
   Loader2,
   Calendar,
+  Search,
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Label } from "../ui/Label";
 import { Card, CardContent } from "../ui/Card";
 import { cn } from "../../utils/cn";
-import { medicationService } from "../../services/api";
+import { medicationService, medicineService } from "../../services/api";
 
 const STEPS = ["basics", "schedule", "reminders", "inventory"];
 
@@ -50,6 +51,11 @@ const AddMedicationModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const isEditMode = !!editMedication;
+
+  // Medicine search state
+  const [medicineSearch, setMedicineSearch] = useState("");
+  const [medicineResults, setMedicineResults] = useState([]);
+  const [searchingMedicine, setSearchingMedicine] = useState(false);
 
   const getInitialFormData = () => ({
     name: "",
@@ -118,6 +124,66 @@ const AddMedicationModal = ({
 
   const updateField = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Medicine search from MedBase
+  const searchMedicines = useCallback(async (query) => {
+    if (!query || query.length < 2) {
+      setMedicineResults([]);
+      return;
+    }
+    setSearchingMedicine(true);
+    try {
+      const results = await medicineService.search(query, 0, 10);
+      setMedicineResults(results?.content || results || []);
+    } catch (error) {
+      console.error("Error searching medicines:", error);
+      setMedicineResults([]);
+    } finally {
+      setSearchingMedicine(false);
+    }
+  }, []);
+
+  // Debounced medicine search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      searchMedicines(medicineSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [medicineSearch, searchMedicines]);
+
+  // Map medicine dosage form to type
+  const mapMedicineType = (dosageForm) => {
+    if (!dosageForm) return "tablet";
+    const form = dosageForm.toLowerCase();
+    if (form.includes("tablet")) return "tablet";
+    if (form.includes("capsule")) return "capsule";
+    if (form.includes("syrup") || form.includes("liquid") || form.includes("solution")) return "liquid";
+    if (form.includes("injection")) return "injection";
+    if (form.includes("inhaler")) return "inhaler";
+    if (form.includes("cream") || form.includes("ointment")) return "cream";
+    if (form.includes("drop")) return "drops";
+    if (form.includes("patch")) return "patch";
+    if (form.includes("powder")) return "powder";
+    return "tablet";
+  };
+
+  // Select medicine from search results
+  const selectMedicineFromSearch = (medicine) => {
+    // Parse strength to extract dosage and unit
+    const strengthMatch = medicine.strength?.match(/^(\d+(?:\.\d+)?)\s*(\w+)$/);
+    const dosage = strengthMatch ? strengthMatch[1] : "";
+    const unit = strengthMatch ? strengthMatch[2] : "mg";
+
+    setFormData((prev) => ({
+      ...prev,
+      name: medicine.brandName || medicine.name,
+      type: mapMedicineType(medicine.dosageForm),
+      dosage: dosage || medicine.strength || "",
+      unit: unit || "mg",
+    }));
+    setMedicineSearch("");
+    setMedicineResults([]);
   };
 
   const addTime = () => {
@@ -343,6 +409,47 @@ const AddMedicationModal = ({
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-4"
               >
+                {/* Medicine Search from MedBase */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Search size={14} /> Search Medicine (from MedBase)
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      placeholder="Search medicines from database..."
+                      value={medicineSearch}
+                      onChange={(e) => setMedicineSearch(e.target.value)}
+                    />
+                    {searchingMedicine && (
+                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
+                    )}
+                  </div>
+                  {medicineResults.length > 0 && (
+                    <div className="border border-slate-200 dark:border-slate-600 rounded-lg max-h-40 overflow-y-auto bg-white dark:bg-slate-800 shadow-lg">
+                      {medicineResults.map((m) => (
+                        <div
+                          key={m.id}
+                          onClick={() => selectMedicineFromSearch(m)}
+                          className="p-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-100 dark:border-slate-700 last:border-0 transition-colors"
+                        >
+                          <p className="font-medium text-slate-800 dark:text-white">
+                            {m.brandName || m.name}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {m.genericName} • {m.strength} • {m.dosageForm}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="relative flex items-center">
+                  <div className="flex-1 border-t border-slate-200 dark:border-slate-700"></div>
+                  <span className="px-3 text-xs text-slate-400">or enter manually</span>
+                  <div className="flex-1 border-t border-slate-200 dark:border-slate-700"></div>
+                </div>
+
                 <div className="space-y-2">
                   <Label>Medication Name *</Label>
                   <Input

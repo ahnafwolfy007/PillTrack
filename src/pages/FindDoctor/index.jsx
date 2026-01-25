@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -36,12 +36,17 @@ import {
   Cookie,
   Apple,
   Ear,
+  CalendarPlus,
+  FileText,
+  Check,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Card, CardContent } from "../../components/ui/Card";
-import { doctorService } from "../../services/api";
+import { doctorService, appointmentService } from "../../services/api";
 import { cn } from "../../utils/cn";
+import { useAuth } from "../../context/AuthContext";
 
 // Icon mapping for specialties
 const specialtyIcons = {
@@ -71,8 +76,281 @@ const getSpecialtyIcon = (iconName) => {
   return specialtyIcons[iconName] || specialtyIcons.default;
 };
 
+// Book Appointment Modal
+const BookAppointmentModal = ({ doctor, isOpen, onClose, onSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState(null);
+  const [formData, setFormData] = useState({
+    appointmentDate: "",
+    appointmentTime: "10:00",
+    symptoms: "",
+    notes: "",
+  });
+
+  // Reset on open
+  useEffect(() => {
+    if (isOpen) {
+      setSuccess(false);
+      setError(null);
+      setFormData({
+        appointmentDate: "",
+        appointmentTime: "10:00",
+        symptoms: "",
+        notes: "",
+      });
+    }
+  }, [isOpen]);
+
+  if (!isOpen || !doctor) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      await appointmentService.book({
+        doctorId: doctor.id,
+        appointmentDate: formData.appointmentDate,
+        appointmentTime: formData.appointmentTime,
+        symptoms: formData.symptoms,
+        patientNotes: formData.notes,
+      });
+      setSuccess(true);
+      onSuccess?.();
+    } catch (err) {
+      setError(err.message || "Failed to book appointment");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Get min date (tomorrow)
+  const getMinDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split("T")[0];
+  };
+
+  // Get max date (3 months from now)
+  const getMaxDate = () => {
+    const maxDate = new Date();
+    maxDate.setMonth(maxDate.getMonth() + 3);
+    return maxDate.toISOString().split("T")[0];
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          className="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="bg-gradient-to-r from-primary to-blue-600 p-5 text-white relative">
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center text-2xl font-bold">
+                {doctor.name?.charAt(0) || "D"}
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">Book Appointment</h2>
+                <p className="text-blue-100 text-sm">{doctor.name}</p>
+                <p className="text-blue-200 text-xs">
+                  {doctor.specialtyDisplayName || doctor.specialty}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="p-5">
+            {success ? (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center py-6"
+              >
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Check className="w-8 h-8 text-green-600" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">
+                  Appointment Requested!
+                </h3>
+                <p className="text-slate-600 mb-4">
+                  Your appointment request has been sent to{" "}
+                  <span className="font-medium">{doctor.name}</span>. You'll be
+                  notified when the doctor responds.
+                </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700 mb-4">
+                  <AlertCircle className="w-4 h-4 inline mr-2" />
+                  The doctor will assign your serial number upon approval.
+                </div>
+                <Button onClick={onClose} className="w-full">
+                  Done
+                </Button>
+              </motion.div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    {error}
+                  </div>
+                )}
+
+                {/* Consultation Fee */}
+                {doctor.consultationFee && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between">
+                    <span className="text-green-700 font-medium">
+                      Consultation Fee
+                    </span>
+                    <span className="text-xl font-bold text-green-800">
+                      ৳{doctor.consultationFee}
+                    </span>
+                  </div>
+                )}
+
+                {/* Date Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Preferred Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    min={getMinDate()}
+                    max={getMaxDate()}
+                    value={formData.appointmentDate}
+                    onChange={(e) =>
+                      setFormData({ ...formData, appointmentDate: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                  />
+                </div>
+
+                {/* Time Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Preferred Time *
+                  </label>
+                  <select
+                    required
+                    value={formData.appointmentTime}
+                    onChange={(e) =>
+                      setFormData({ ...formData, appointmentTime: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary bg-white"
+                  >
+                    <option value="09:00">9:00 AM</option>
+                    <option value="10:00">10:00 AM</option>
+                    <option value="11:00">11:00 AM</option>
+                    <option value="12:00">12:00 PM</option>
+                    <option value="14:00">2:00 PM</option>
+                    <option value="15:00">3:00 PM</option>
+                    <option value="16:00">4:00 PM</option>
+                    <option value="17:00">5:00 PM</option>
+                    <option value="18:00">6:00 PM</option>
+                    <option value="19:00">7:00 PM</option>
+                    <option value="20:00">8:00 PM</option>
+                  </select>
+                </div>
+
+                {/* Symptoms */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Symptoms / Reason for Visit
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Describe your symptoms or reason for consultation..."
+                    value={formData.symptoms}
+                    onChange={(e) =>
+                      setFormData({ ...formData, symptoms: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none"
+                  />
+                </div>
+
+                {/* Additional Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Additional Notes (Optional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Any other information you'd like to share..."
+                    value={formData.notes}
+                    onChange={(e) =>
+                      setFormData({ ...formData, notes: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none"
+                  />
+                </div>
+
+                {/* Info Box */}
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600">
+                  <p className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                    <span>
+                      After booking, the doctor will review your request and
+                      assign a serial number. You'll receive a notification when
+                      your appointment is confirmed.
+                    </span>
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onClose}
+                    className="flex-1"
+                    disabled={loading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="flex-1 gap-2" disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Booking...
+                      </>
+                    ) : (
+                      <>
+                        <CalendarPlus className="w-4 h-4" />
+                        Book Appointment
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
 // Doctor Detail Modal
-const DoctorDetailModal = ({ doctor, isOpen, onClose }) => {
+const DoctorDetailModal = ({ doctor, isOpen, onClose, onBookAppointment }) => {
   if (!isOpen || !doctor) return null;
 
   return (
@@ -228,8 +506,12 @@ const DoctorDetailModal = ({ doctor, isOpen, onClose }) => {
                   Call Now
                 </Button>
               )}
-              <Button variant="outline" className="flex-1 gap-2">
-                <Calendar size={16} />
+              <Button
+                variant={doctor.phone ? "outline" : "default"}
+                className="flex-1 gap-2"
+                onClick={() => onBookAppointment(doctor)}
+              >
+                <CalendarPlus size={16} />
                 Book Appointment
               </Button>
             </div>
@@ -454,6 +736,8 @@ const AllSpecialtiesModal = ({
 };
 
 const FindDoctor = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [specialties, setSpecialties] = useState([]);
   const [doctors, setDoctors] = useState([]);
@@ -462,6 +746,8 @@ const FindDoctor = () => {
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showAllSpecialtiesModal, setShowAllSpecialtiesModal] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingDoctor, setBookingDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
   const [stats, setStats] = useState({});
@@ -578,6 +864,17 @@ const FindDoctor = () => {
   const handleDoctorClick = (doctor) => {
     setSelectedDoctor(doctor);
     setShowDetailModal(true);
+  };
+
+  const handleBookAppointment = (doctor) => {
+    // Check if user is logged in
+    if (!user) {
+      navigate("/auth?mode=login&redirect=/find-doctor");
+      return;
+    }
+    setBookingDoctor(doctor);
+    setShowDetailModal(false);
+    setShowBookingModal(true);
   };
 
   const clearFilters = () => {
@@ -797,6 +1094,17 @@ const FindDoctor = () => {
         doctor={selectedDoctor}
         isOpen={showDetailModal}
         onClose={() => setShowDetailModal(false)}
+        onBookAppointment={handleBookAppointment}
+      />
+
+      {/* Book Appointment Modal */}
+      <BookAppointmentModal
+        doctor={bookingDoctor}
+        isOpen={showBookingModal}
+        onClose={() => setShowBookingModal(false)}
+        onSuccess={() => {
+          // Optionally refresh data or show notification
+        }}
       />
 
       {/* All Specialties Modal */}

@@ -340,4 +340,195 @@ public class EmailService {
             </html>
             """.formatted(userName, resetLink);
     }
+    
+    @Async
+    public void sendRegistrationOtpEmail(String to, String userName, String otp, int expiryMinutes) {
+        String subject = "Verify Your Email - " + appName;
+        String content = buildRegistrationOtpContent(userName, otp, expiryMinutes);
+        sendHtmlEmail(to, subject, content);
+    }
+    
+    @Async
+    public void sendPasswordResetOtpEmail(String to, String userName, String otp, int expiryMinutes) {
+        String subject = "Password Reset OTP - " + appName;
+        String content = buildPasswordResetOtpContent(userName, otp, expiryMinutes);
+        sendHtmlEmail(to, subject, content);
+    }
+    
+    @Async
+    public void sendPasswordChangedEmail(String to, String userName) {
+        String subject = "Password Changed Successfully - " + appName;
+        String content = buildPasswordChangedContent(userName);
+        sendHtmlEmail(to, subject, content);
+    }
+    
+    @Async
+    public void sendEmailVerifiedEmail(String to, String userName) {
+        String subject = "Email Verified Successfully - " + appName;
+        String content = buildEmailVerifiedContent(userName);
+        sendHtmlEmail(to, subject, content);
+    }
+    
+    private String buildRegistrationOtpContent(String userName, String otp, int expiryMinutes) {
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                    .otp-box { background: white; padding: 30px; border-radius: 10px; margin: 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; }
+                    .otp-code { font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #667eea; margin: 20px 0; }
+                    .warning { color: #856404; background: #fff3cd; padding: 15px; border-radius: 5px; margin-top: 20px; }
+                    .footer { text-align: center; margin-top: 20px; color: #888; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Verify Your Email</h1>
+                    </div>
+                    <div class="content">
+                        <p>Hi %s,</p>
+                        <p>Thank you for registering with PillTrack! Please use the following OTP to verify your email address:</p>
+                        <div class="otp-box">
+                            <p>Your verification code is:</p>
+                            <div class="otp-code">%s</div>
+                            <p style="color: #888; font-size: 14px;">Valid for %d minutes</p>
+                        </div>
+                        <div class="warning">
+                            <strong>Security Notice:</strong> Never share this OTP with anyone. PillTrack will never ask for your OTP via phone or other means.
+                        </div>
+                    </div>
+                    <div class="footer">
+                        <p>If you didn't create an account with PillTrack, please ignore this email.</p>
+                        <p>© 2024 PillTrack. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(userName, otp, expiryMinutes);
+    }
+    
+    private String buildPasswordResetOtpContent(String userName, String otp, int expiryMinutes) {
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #f093fb 0%%, #f5576c 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                    .otp-box { background: white; padding: 30px; border-radius: 10px; margin: 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; }
+                    .otp-code { font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #f5576c; margin: 20px 0; }
+                    .warning { color: #856404; background: #fff3cd; padding: 15px; border-radius: 5px; margin-top: 20px; }
+                    .footer { text-align: center; margin-top: 20px; color: #888; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Password Reset Request</h1>
+                    </div>
+                    <div class="content">
+                        <p>Hi %s,</p>
+                        <p>We received a request to reset your password. Use the following OTP to proceed:</p>
+                        <div class="otp-box">
+                            <p>Your password reset code is:</p>
+                            <div class="otp-code">%s</div>
+                            <p style="color: #888; font-size: 14px;">Valid for %d minutes</p>
+                        </div>
+                        <div class="warning">
+                            <strong>Important:</strong> If you didn't request a password reset, please ignore this email. Your account is safe.
+                        </div>
+                    </div>
+                    <div class="footer">
+                        <p>© 2024 PillTrack. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(userName, otp, expiryMinutes);
+    }
+    
+    private String buildPasswordChangedContent(String userName) {
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #11998e 0%%, #38ef7d 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                    .success-box { background: #d4edda; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center; border-left: 4px solid #28a745; }
+                    .warning { color: #856404; background: #fff3cd; padding: 15px; border-radius: 5px; margin-top: 20px; }
+                    .footer { text-align: center; margin-top: 20px; color: #888; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Password Changed</h1>
+                    </div>
+                    <div class="content">
+                        <p>Hi %s,</p>
+                        <div class="success-box">
+                            <h2>Your password has been successfully changed!</h2>
+                        </div>
+                        <p>Your PillTrack account password was just changed. If you made this change, you can ignore this email.</p>
+                        <div class="warning">
+                            <strong>Didn't change your password?</strong> If you didn't make this change, please contact our support team immediately and secure your account.
+                        </div>
+                    </div>
+                    <div class="footer">
+                        <p>© 2024 PillTrack. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(userName);
+    }
+    
+    private String buildEmailVerifiedContent(String userName) {
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #11998e 0%%, #38ef7d 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                    .success-box { background: #d4edda; padding: 30px; border-radius: 10px; margin: 20px 0; text-align: center; }
+                    .checkmark { font-size: 60px; }
+                    .btn { display: inline-block; background: #11998e; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin-top: 20px; }
+                    .footer { text-align: center; margin-top: 20px; color: #888; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Email Verified!</h1>
+                    </div>
+                    <div class="content">
+                        <p>Hi %s,</p>
+                        <div class="success-box">
+                            <h2>Your email has been verified successfully!</h2>
+                            <p>You now have full access to all PillTrack features.</p>
+                        </div>
+                        <p>Start managing your medications, set up reminders, and explore our marketplace!</p>
+                        <center><a href="#" class="btn">Go to Dashboard</a></center>
+                    </div>
+                    <div class="footer">
+                        <p>© 2024 PillTrack. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(userName);
+    }
 }

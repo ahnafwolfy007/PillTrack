@@ -14,6 +14,8 @@ import {
   Stethoscope,
   MapPin,
   Users,
+  CalendarCheck,
+  FileEdit,
 } from "lucide-react";
 import { cn } from "../../utils/cn";
 import { motion } from "framer-motion";
@@ -98,11 +100,12 @@ const Sidebar = ({ collapsed, setCollapsed, userRole = "patient" }) => {
               collapsed={collapsed}
             />
             <SidebarLink
-              to="/doctor/profile"
-              icon={User}
-              label="Doctor Profile"
+              to="/doctor/appointments"
+              icon={CalendarCheck}
+              label="Appointments"
               collapsed={collapsed}
             />
+           
           </>
         ) : (
           <>
@@ -122,6 +125,18 @@ const Sidebar = ({ collapsed, setCollapsed, userRole = "patient" }) => {
               to="/dashboard/calendar"
               icon={Calendar}
               label="Schedule"
+              collapsed={collapsed}
+            />
+            <SidebarLink
+              to="/dashboard/appointments"
+              icon={CalendarCheck}
+              label="Appointments"
+              collapsed={collapsed}
+            />
+            <SidebarLink
+              to="/dashboard/medication-requests"
+              icon={FileEdit}
+              label="Med Requests"
               collapsed={collapsed}
             />
             <SidebarLink

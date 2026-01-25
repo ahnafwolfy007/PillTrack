@@ -19,7 +19,9 @@ const Navbar = ({ onMenuClick }) => {
     const { isDark, toggleTheme } = useTheme();
 
     const getProfileImage = () => {
-        const localImage = localStorage.getItem('profileImage');
+        // Use user-specific localStorage key
+        const userId = user?.id || user?.email || 'default';
+        const localImage = localStorage.getItem(`profileImage_${userId}`);
         if (localImage) return localImage;
         if (user?.avatarUrl) return user.avatarUrl;
         const seed = user?.name || user?.email || 'user';

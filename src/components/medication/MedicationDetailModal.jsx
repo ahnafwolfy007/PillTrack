@@ -371,6 +371,19 @@ const MedicationDetailModal = ({ isOpen, onClose, medicationId, onEdit, onRefres
                                         </Card>
                                     )}
 
+                                    {/* Doctor's Advice */}
+                                    {medication.doctorAdvice && (
+                                        <Card className="border-2 border-primary/30 bg-primary/5">
+                                            <CardContent className="p-4">
+                                                <h3 className="font-semibold text-primary mb-2 flex items-center gap-2">
+                                                    <span className="text-amber-500">★</span>
+                                                    Doctor's Advice
+                                                </h3>
+                                                <p className="text-slate-700 font-medium">{medication.doctorAdvice}</p>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+
                                     {/* Adherence Stats */}
                                     {adherenceStats.total > 0 && (
                                         <Card>

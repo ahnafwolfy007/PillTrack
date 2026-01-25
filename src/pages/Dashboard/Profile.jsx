@@ -133,8 +133,9 @@ const Profile = () => {
             reader.onloadend = () => {
                 const dataUrl = reader.result;
                 setPreviewImage(dataUrl);
-                // Store in localStorage for persistence (workaround without file upload server)
-                localStorage.setItem('profileImage', dataUrl);
+                // Store in localStorage for persistence with user-specific key
+                const userId = user?.id || user?.email || 'default';
+                localStorage.setItem(`profileImage_${userId}`, dataUrl);
                 setTempProfile({ ...tempProfile, avatarUrl: dataUrl });
                 setSuccess('Photo updated! It will be saved locally.');
                 setTimeout(() => setSuccess(''), 3000);
@@ -219,8 +220,9 @@ const Profile = () => {
 
     const getProfileImage = () => {
         if (previewImage) return previewImage;
-        // Check localStorage for locally stored image
-        const localImage = localStorage.getItem('profileImage');
+        // Check localStorage for locally stored image with user-specific key
+        const userId = user?.id || user?.email || 'default';
+        const localImage = localStorage.getItem(`profileImage_${userId}`);
         if (localImage) return localImage;
         if (profile.avatarUrl) return profile.avatarUrl;
         // Generate a consistent avatar based on user name
