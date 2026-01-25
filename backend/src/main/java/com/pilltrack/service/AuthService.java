@@ -61,7 +61,7 @@ public class AuthService {
         final RoleType roleType = requestedRole;
         
         Role role = roleRepository.findByName(roleType)
-                .orElseThrow(() -> new ResourceNotFoundException("Role", "name", roleType.name()));
+            .orElseGet(() -> roleRepository.save(Role.builder().name(roleType).build()));
         
         User user = User.builder()
                 .name(request.getName())

@@ -1,5 +1,5 @@
 # PillTrack Startup Script
-# This script starts both the backend and frontend servers
+# This script starts both the backend and frontend servers (backend runs on 8081)
 
 Write-Host ""
 Write-Host "================================================" -ForegroundColor Cyan
@@ -8,7 +8,7 @@ Write-Host "================================================" -ForegroundColor C
 Write-Host ""
 
 # Set JAVA_HOME
-$env:JAVA_HOME = "C:\Program Files\JetBrains\IntelliJ IDEA 2025.2.4\jbr"
+$env:JAVA_HOME = "C:\Program Files\JetBrains\IntelliJ IDEA Community Edition 2025.2.5\jbr"
 Write-Host "[INFO] JAVA_HOME set to: $env:JAVA_HOME" -ForegroundColor Yellow
 
 # Get the script directory
@@ -35,8 +35,8 @@ Write-Host "           Application URLs                     " -ForegroundColor C
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  Frontend:     " -NoNewline; Write-Host "http://localhost:5173" -ForegroundColor Green
-Write-Host "  Backend API:  " -NoNewline; Write-Host "http://localhost:8080/api" -ForegroundColor Green
-Write-Host "  Swagger UI:   " -NoNewline; Write-Host "http://localhost:8080/api/swagger-ui.html" -ForegroundColor Green
+Write-Host "  Backend API:  " -NoNewline; Write-Host "http://localhost:8081/api/v1" -ForegroundColor Green
+Write-Host "  Swagger UI:   " -NoNewline; Write-Host "http://localhost:8081/swagger-ui.html" -ForegroundColor Green
 Write-Host ""
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""

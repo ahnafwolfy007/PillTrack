@@ -3,11 +3,11 @@
 spring:
   application:
     name: PillTrack
-  
+
   # Lazy initialization for faster startup
   main:
     lazy-initialization: true
-  
+
   # Database Configuration (PostgreSQL - Aiven Cloud)
   datasource:
     url: jdbc:postgresql://pg-21f07101-edusyncuiu.i.aivencloud.com:16537/defaultdb?sslmode=require
@@ -20,7 +20,7 @@ spring:
       idle-timeout: 300000
       connection-timeout: 20000
       max-lifetime: 1200000
-  
+
   # JPA Configuration
   jpa:
     hibernate:
@@ -37,7 +37,7 @@ spring:
         order_updates: true
     open-in-view: false
     defer-datasource-initialization: true
-  
+
   # Email Configuration
   mail:
     host: smtp.gmail.com
@@ -51,14 +51,14 @@ spring:
           starttls:
             enable: true
             required: true
-  
+
   # File Upload Configuration
   servlet:
     multipart:
       enabled: true
       max-file-size: 10MB
       max-request-size: 10MB
-  
+
   # Quartz Configuration
   quartz:
     job-store-type: jdbc
@@ -84,7 +84,7 @@ spring:
 
 # Server Configuration
 server:
-  port: 8080
+  port: 8081
   # Note: Controllers already include /api/v1 in their paths, so no context-path needed
 
 # Application-level Configuration
@@ -92,12 +92,12 @@ app:
   # JWT Configuration
   jwt:
     secret: ${JWT_SECRET:UGlsbFRyYWNrU2VjcmV0S2V5Rm9ySldUVG9rZW5HZW5lcmF0aW9uTXVzdEJlQXRMZWFzdDUxMkJpdHNMb25nRm9ySFM1MTJBbGdvcml0aG1TZWN1cml0eVJlcXVpcmVtZW50czIwMjY=}
-    expiration: 900000      # 15 minutes in milliseconds
-    refresh-expiration: 604800000  # 7 days in milliseconds
+    expiration: 900000 # 15 minutes in milliseconds
+    refresh-expiration: 604800000 # 7 days in milliseconds
   low-stock-threshold-days: 7
   reminder-snooze-options: 5,10,15,30
   max-login-attempts: 5
-  password-reset-token-expiry: 3600000  # 1 hour
+  password-reset-token-expiry: 3600000 # 1 hour
   default-timezone: Asia/Dhaka
   default-currency: BDT
   # Data seeding - set to false to skip heavy seeding on startup
@@ -113,7 +113,7 @@ sslcommerz:
   success-url: ${FRONTEND_URL:http://localhost:5173}/payment/success
   fail-url: ${FRONTEND_URL:http://localhost:5173}/payment/fail
   cancel-url: ${FRONTEND_URL:http://localhost:5173}/payment/cancel
-  ipn-url: ${BACKEND_URL:http://localhost:8080}/api/payments/ipn
+  ipn-url: ${BACKEND_URL:http://localhost:8081}/api/payments/ipn
 
 # CORS Configuration
 cors:
@@ -152,4 +152,3 @@ springdoc:
     operationsSorter: method
     tagsSorter: alpha
   show-actuator: false
-

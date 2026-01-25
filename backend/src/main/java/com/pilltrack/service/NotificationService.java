@@ -192,6 +192,18 @@ public class NotificationService {
     public void sendLowStockAlert(User user, String medicationName, int currentQuantity) {
         sendLowStockAlert(user.getId(), medicationName, currentQuantity);
     }
+
+    public void sendMedicationUpdateByDoctor(Long userId, String medicationName, String doctorName, boolean isNew) {
+        String title = isNew ? "New medication added" : "Medication updated";
+        String message = String.format("%s updated %s", doctorName, medicationName);
+        createNotification(
+                userId,
+                NotificationType.MEDICATION_UPDATED_BY_DOCTOR,
+                title,
+                message,
+                "/dashboard/medications"
+        );
+    }
     
     public void sendOrderStatusUpdate(Long userId, String orderNumber, String status) {
         NotificationType type = switch (status.toUpperCase()) {

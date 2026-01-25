@@ -49,6 +49,13 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(null, "Password changed successfully"));
     }
     
+    @DeleteMapping("/me")
+    @Operation(summary = "Delete current user account")
+    public ResponseEntity<ApiResponse<Void>> deleteAccount() {
+        userService.deleteCurrentUser();
+        return ResponseEntity.ok(ApiResponse.success(null, "Account deleted successfully"));
+    }
+    
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get user by ID (Admin only)")

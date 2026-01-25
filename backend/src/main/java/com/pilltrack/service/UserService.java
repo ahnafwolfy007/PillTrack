@@ -174,6 +174,19 @@ public class UserService {
         log.info("User activated: {}", user.getEmail());
     }
     
+    @Transactional
+    public void deleteCurrentUser() {
+        User user = currentUser.getUser();
+        if (user == null) {
+            throw new ResourceNotFoundException("User not found");
+        }
+        
+        String email = user.getEmail();
+        userRepository.delete(user);
+        
+        log.info("User account deleted: {}", email);
+    }
+    
     private UserResponse mapToResponse(User user) {
         // Single role
         List<String> roles = Collections.singletonList(user.getRole().getName().name());

@@ -1,13 +1,23 @@
 package com.pilltrack.controller;
 
+import com.pilltrack.dto.request.DoctorProfileRequest;
+import com.pilltrack.dto.request.MedicationRequest;
 import com.pilltrack.dto.response.ApiResponse;
 import com.pilltrack.dto.response.DoctorResponse;
+import com.pilltrack.dto.response.MedicationResponse;
+import com.pilltrack.dto.response.PatientSummaryResponse;
 import com.pilltrack.dto.response.SpecialtyResponse;
+import com.pilltrack.security.CurrentUser;
+import com.pilltrack.service.DoctorPatientService;
 import com.pilltrack.service.DoctorService;
+import com.pilltrack.service.MedicationService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +30,9 @@ import java.util.Map;
 public class DoctorController {
     
     private final DoctorService doctorService;
+    private final DoctorPatientService doctorPatientService;
+    private final MedicationService medicationService;
+    private final CurrentUser currentUser;
     
     @GetMapping
     @Operation(summary = "Get all doctors")
@@ -98,5 +111,81 @@ public class DoctorController {
     @Operation(summary = "Get doctor statistics")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStats() {
         return ResponseEntity.ok(ApiResponse.success(doctorService.getStats()));
+    }
+
+    // Doctor portal endpoints (secured)
+    @GetMapping("/me/profile")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Get current doctor profile")
+    public ResponseEntity<ApiResponse<DoctorResponse>> getMyProfile() {
+        return ResponseEntity.ok(ApiResponse.success(doctorService.getDoctorProfileForUser(currentUser.getUser())));
+    }
+
+    @PostMapping("/me/profile")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Create or update doctor profile for current user")
+    public ResponseEntity<ApiResponse<DoctorResponse>> upsertMyProfile(@Valid @RequestBody DoctorProfileRequest request) {
+        DoctorResponse response = doctorService.upsertDoctorProfile(currentUser.getUser(), request);
+        return ResponseEntity.ok(ApiResponse.success(response, "Doctor profile saved"));
+    }
+
+    @GetMapping("/me/patients")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "List patients linked to current doctor")
+    public ResponseEntity<ApiResponse<List<PatientSummaryResponse>>> getMyPatients() {
+        return ResponseEntity.ok(ApiResponse.success(doctorPatientService.getMyPatients()));
+    }
+
+    @PostMapping("/me/patients/{patientId}")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Link a patient to current doctor")
+    public ResponseEntity<ApiResponse<PatientSummaryResponse>> addPatient(@PathVariable Long patientId) {
+        PatientSummaryResponse response = doctorPatientService.addPatient(patientId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Patient linked"));
+    }
+
+    @DeleteMapping("/me/patients/{patientId}")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Unlink a patient from current doctor")
+    public ResponseEntity<ApiResponse<Void>> removePatient(@PathVariable Long patientId) {
+        doctorPatientService.removePatient(patientId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Patient unlinked"));
+    }
+
+    @GetMapping("/me/patients/{patientId}/medications")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "List medications for a linked patient")
+    public ResponseEntity<ApiResponse<List<MedicationResponse>>> getPatientMedications(@PathVariable Long patientId) {
+        List<MedicationResponse> response = medicationService.getMedicationsForPatient(patientId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/me/patients/{patientId}/medications")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Create medication for a linked patient")
+    public ResponseEntity<ApiResponse<MedicationResponse>> createPatientMedication(
+            @PathVariable Long patientId,
+            @Valid @RequestBody MedicationRequest request) {
+        MedicationResponse response = medicationService.createMedicationForPatient(patientId, request);
+        return ResponseEntity.status(201).body(ApiResponse.created(response, "Medication created for patient"));
+    }
+
+    @PutMapping("/me/patients/{patientId}/medications/{medicationId}")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Update medication for a linked patient")
+    public ResponseEntity<ApiResponse<MedicationResponse>> updatePatientMedication(
+            @PathVariable Long patientId,
+            @PathVariable Long medicationId,
+            @Valid @RequestBody MedicationRequest request) {
+        MedicationResponse response = medicationService.updateMedicationForPatient(patientId, medicationId, request);
+        return ResponseEntity.ok(ApiResponse.success(response, "Medication updated"));
     }
 }

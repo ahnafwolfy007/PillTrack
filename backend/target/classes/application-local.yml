@@ -1,0 +1,38 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.quartz.QuartzAutoConfiguration
+  datasource:
+    url: jdbc:h2:mem:pilltrack;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  quartz:
+    job-store-type: memory
+    jdbc:
+      initialize-schema: never
+    properties:
+      org:
+        quartz:
+          jobStore:
+            class: org.quartz.simpl.RAMJobStore
+          scheduler:
+            instanceName: PillTrackSchedulerLocal
+            instanceId: AUTO
+
+server:
+  port: 8081
+
+logging:
+  level:
+    root: INFO
+    com.pilltrack: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} %-5level [%thread] %logger{36} - %msg%n"

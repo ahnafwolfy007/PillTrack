@@ -1,9 +1,12 @@
 package com.pilltrack.service;
 
+import com.pilltrack.dto.request.DoctorProfileRequest;
 import com.pilltrack.dto.response.DoctorResponse;
 import com.pilltrack.dto.response.SpecialtyResponse;
+import com.pilltrack.exception.ResourceNotFoundException;
 import com.pilltrack.model.entity.Doctor;
 import com.pilltrack.model.entity.Specialty;
+import com.pilltrack.model.entity.User;
 import com.pilltrack.repository.DoctorRepository;
 import com.pilltrack.repository.SpecialtyRepository;
 import lombok.RequiredArgsConstructor;
@@ -279,6 +282,74 @@ public class DoctorService {
         stats.put("totalSpecialties", doctorRepository.countDistinctRawSpecialties());
         stats.put("totalLocations", doctorRepository.findAllLocations().size());
         return stats;
+    }
+
+    @Transactional
+    public DoctorResponse upsertDoctorProfile(User user, DoctorProfileRequest request) {
+        if (user == null) {
+            throw new ResourceNotFoundException("User not found");
+        }
+
+        Doctor doctor = doctorRepository.findByUserId(user.getId())
+                .orElse(Doctor.builder()
+                        .user(user)
+                        .rating(4.0)
+                        .ratingCount(0)
+                        .isActive(true)
+                        .isAvailable(true)
+                        .build());
+
+        if (doctor.getUser() == null) {
+            doctor.setUser(user);
+        }
+
+        doctor.setName(request.getName());
+        doctor.setEducation(request.getEducation());
+        doctor.setExperienceYears(request.getExperienceYears());
+        doctor.setChamber(request.getChamber());
+        doctor.setLocation(request.getLocation());
+        doctor.setConcentrations(request.getConcentrations());
+        doctor.setPhone(request.getPhone() != null ? request.getPhone() : user.getPhone());
+        doctor.setEmail(request.getEmail() != null ? request.getEmail() : user.getEmail());
+        doctor.setImageUrl(request.getImageUrl());
+        doctor.setConsultationFee(request.getConsultationFee());
+        if (request.getIsAvailable() != null) {
+            doctor.setIsAvailable(request.getIsAvailable());
+        }
+        doctor.setIsActive(true);
+
+        Long specialtyId = request.getSpecialtyId();
+        if (specialtyId != null) {
+            Specialty specialty = specialtyRepository.findById(specialtyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Specialty", "id", specialtyId));
+            doctor.setSpecialty(specialty);
+            doctor.setSpecialtyRaw(specialty.getName());
+        } else if (request.getSpecialtyRaw() != null && !request.getSpecialtyRaw().isEmpty()) {
+            doctor.setSpecialty(null);
+            doctor.setSpecialtyRaw(request.getSpecialtyRaw());
+        }
+
+        doctor = doctorRepository.save(doctor);
+        return mapToDoctorResponse(doctor);
+    }
+
+    public DoctorResponse getDoctorProfileForUser(User user) {
+        if (user == null) {
+            throw new ResourceNotFoundException("User not found");
+        }
+
+        Doctor doctor = doctorRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor", "userId", user.getId()));
+        return mapToDoctorResponse(doctor);
+    }
+
+    public Doctor getDoctorEntityForUser(User user) {
+        if (user == null) {
+            throw new ResourceNotFoundException("User not found");
+        }
+
+        return doctorRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor", "userId", user.getId()));
     }
     
     /**

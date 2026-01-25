@@ -4,6 +4,7 @@ public enum NotificationType {
     MEDICATION_REMINDER,
     DOSE_LOGGED,
     LOW_STOCK,
+    MEDICATION_UPDATED_BY_DOCTOR,
     ORDER_PLACED,
     ORDER_CONFIRMED,
     ORDER_SHIPPED,
@@ -14,5 +15,6 @@ public enum NotificationType {
     SHOP_VERIFIED,
     SHOP_REJECTED,
     NEW_ORDER,
-    SYSTEM_ALERT
+    SYSTEM_ALERT,
+    DOCTOR_ASSIGNED
 }

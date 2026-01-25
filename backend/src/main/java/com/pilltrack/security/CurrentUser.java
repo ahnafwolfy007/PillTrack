@@ -55,4 +55,8 @@ public class CurrentUser {
     public boolean isShopOwner() {
         return hasRole("SHOP_OWNER");
     }
+
+    public boolean isDoctor() {
+        return hasRole("DOCTOR");
+    }
 }

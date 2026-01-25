@@ -115,6 +115,9 @@ public class User implements UserDetails {
     
     @OneToOne(mappedBy = "owner", cascade = CascadeType.ALL)
     private MedicineShop shop;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Doctor doctor;
     
     // UserDetails implementation
     @Override

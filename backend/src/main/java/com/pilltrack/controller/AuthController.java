@@ -29,6 +29,16 @@ public class AuthController {
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.created(response, "User registered successfully"));
     }
+
+    @PostMapping("/register/doctor")
+    @Operation(summary = "Register a new doctor")
+    public ResponseEntity<ApiResponse<AuthResponse>> registerDoctor(@Valid @RequestBody RegisterRequest request) {
+        request.setRole("DOCTOR");
+        AuthResponse response = authService.register(request);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.created(response, "Doctor registered successfully"));
+    }
     
     @PostMapping("/login")
     @Operation(summary = "Login with email and password")

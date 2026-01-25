@@ -5,10 +5,15 @@ import com.pilltrack.dto.response.MedicationResponse;
 import com.pilltrack.dto.response.PageResponse;
 import com.pilltrack.exception.AccessDeniedException;
 import com.pilltrack.exception.ResourceNotFoundException;
+import com.pilltrack.model.entity.Doctor;
 import com.pilltrack.model.entity.Medication;
 import com.pilltrack.model.entity.User;
 import com.pilltrack.model.enums.MedicationStatus;
+import com.pilltrack.model.enums.NotificationType;
+import com.pilltrack.repository.DoctorPatientRepository;
+import com.pilltrack.repository.DoctorRepository;
 import com.pilltrack.repository.MedicationRepository;
+import com.pilltrack.repository.UserRepository;
 import com.pilltrack.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +34,10 @@ public class MedicationService {
     private final MedicationRepository medicationRepository;
     private final CurrentUser currentUser;
     private final ReminderService reminderService;
+    private final DoctorRepository doctorRepository;
+    private final DoctorPatientRepository doctorPatientRepository;
+    private final UserRepository userRepository;
+    private final NotificationService notificationService;
     
     @Transactional(readOnly = true)
     public List<MedicationResponse> getCurrentUserMedications() {
@@ -198,6 +207,106 @@ public class MedicationService {
         
         return mapToResponse(medication);
     }
+
+    @Transactional(readOnly = true)
+    public List<MedicationResponse> getMedicationsForPatient(Long patientId) {
+        User patient = getPatientForCurrentDoctor(patientId);
+        return medicationRepository.findActiveByUserId(patient.getId()).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public MedicationResponse createMedicationForPatient(Long patientId, MedicationRequest request) {
+        User patient = getPatientForCurrentDoctor(patientId);
+        Doctor doctor = getCurrentDoctor();
+        Integer frequencyInt = parseFrequency(request.getFrequency());
+
+        Medication medication = Medication.builder()
+                .user(patient)
+                .name(request.getName())
+                .type(request.getType())
+                .dosage(request.getStrength() != null ? request.getStrength() : "N/A")
+                .frequency(frequencyInt)
+                .instructions(request.getInstructions())
+                .prescribedBy(request.getPrescribingDoctor() != null ? request.getPrescribingDoctor() : doctor.getName())
+                .startDate(request.getStartDate() != null ? request.getStartDate() : LocalDate.now())
+                .endDate(request.getEndDate())
+                .inventory(request.getCurrentQuantity() != null ? request.getCurrentQuantity() : 0)
+                .quantityPerDose(request.getQuantityPerDose() != null ? request.getQuantityPerDose() : 1)
+                .reminderMinutesBefore(request.getReminderMinutesBefore() != null ? request.getReminderMinutesBefore() : 5)
+                .imageUrl(request.getImageUrl())
+                .status(MedicationStatus.ACTIVE)
+                .build();
+
+        medication = medicationRepository.save(medication);
+
+        if (request.getReminderTimes() != null && !request.getReminderTimes().isEmpty()) {
+            reminderService.createRemindersForMedication(
+                    medication,
+                    request.getReminderTimes(),
+                    request.getReminderMinutesBefore()
+            );
+        }
+
+        notificationService.sendMedicationUpdateByDoctor(patient.getId(), medication.getName(), doctor.getName(), true);
+        log.info("Doctor {} created medication {} for patient {}", doctor.getId(), medication.getId(), patient.getId());
+        return mapToResponse(medication);
+    }
+
+    @Transactional
+    public MedicationResponse updateMedicationForPatient(Long patientId, Long medicationId, MedicationRequest request) {
+        User patient = getPatientForCurrentDoctor(patientId);
+        Doctor doctor = getCurrentDoctor();
+        Medication medication = medicationRepository.findById(medicationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Medication", "id", medicationId));
+
+        verifyMedicationBelongsToPatient(medication, patient.getId());
+
+        if (request.getName() != null) {
+            medication.setName(request.getName());
+        }
+        if (request.getType() != null) {
+            medication.setType(request.getType());
+        }
+        if (request.getStrength() != null) {
+            medication.setDosage(request.getStrength());
+        }
+        if (request.getFrequency() != null) {
+            medication.setFrequency(parseFrequency(request.getFrequency()));
+        }
+        if (request.getInstructions() != null) {
+            medication.setInstructions(request.getInstructions());
+        }
+        if (request.getPrescribingDoctor() != null) {
+            medication.setPrescribedBy(request.getPrescribingDoctor());
+        }
+        if (request.getStartDate() != null) {
+            medication.setStartDate(request.getStartDate());
+        }
+        if (request.getEndDate() != null) {
+            medication.setEndDate(request.getEndDate());
+        }
+        if (request.getCurrentQuantity() != null) {
+            medication.setInventory(request.getCurrentQuantity());
+        }
+        if (request.getImageUrl() != null) {
+            medication.setImageUrl(request.getImageUrl());
+        }
+
+        if (request.getReminderTimes() != null) {
+            reminderService.updateRemindersForMedication(
+                    medication,
+                    request.getReminderTimes(),
+                    request.getReminderMinutesBefore()
+            );
+        }
+
+        medication = medicationRepository.save(medication);
+        notificationService.sendMedicationUpdateByDoctor(patient.getId(), medication.getName(), doctor.getName(), false);
+        log.info("Doctor {} updated medication {} for patient {}", doctor.getId(), medication.getId(), patient.getId());
+        return mapToResponse(medication);
+    }
     
     private Integer parseFrequency(String frequency) {
         if (frequency == null) return 1;
@@ -206,6 +315,38 @@ public class MedicationService {
         } catch (NumberFormatException e) {
             // Default to 1 if not parseable
             return 1;
+        }
+    }
+
+    private User getPatientForCurrentDoctor(Long patientId) {
+        Doctor doctor = getCurrentDoctor();
+        User patient = userRepository.findById(patientId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", patientId));
+
+        if (!doctorPatientRepository.existsByDoctorIdAndPatientId(doctor.getId(), patientId)) {
+            throw new AccessDeniedException("Patient is not assigned to the current doctor");
+        }
+
+        return patient;
+    }
+
+    private Doctor getCurrentDoctor() {
+        User user = currentUser.getUser();
+        if (user == null) {
+            throw new ResourceNotFoundException("User not found");
+        }
+
+        if (!currentUser.isDoctor()) {
+            throw new AccessDeniedException("Only doctors can manage patient medications");
+        }
+
+        return doctorRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor", "userId", user.getId()));
+    }
+
+    private void verifyMedicationBelongsToPatient(Medication medication, Long patientId) {
+        if (!medication.getUser().getId().equals(patientId)) {
+            throw new AccessDeniedException("Medication does not belong to the specified patient");
         }
     }
     
