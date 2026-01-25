@@ -8,7 +8,7 @@ Write-Host "================================================" -ForegroundColor C
 Write-Host ""
 
 # Set JAVA_HOME
-$env:JAVA_HOME = "C:\Program Files\JetBrains\IntelliJ IDEA 2025.2.4\jbr"
+$env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-21.0.9.10-hotspot"
 Write-Host "[INFO] JAVA_HOME set to: $env:JAVA_HOME" -ForegroundColor Yellow
 
 # Get the script directory
