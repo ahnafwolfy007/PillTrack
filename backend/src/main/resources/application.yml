@@ -1,0 +1,180 @@
+# PillTrack Backend Configuration
+
+server:
+  address: 0.0.0.0  # Listen on all network interfaces for LAN access
+  port: 8081
+  # Tomcat thread pool configuration for handling multiple concurrent requests
+  tomcat:
+    threads:
+      max: 200          # Maximum worker threads
+      min-spare: 20     # Minimum spare threads always kept running
+    max-connections: 10000  # Maximum connections
+    accept-count: 100   # Queue size when all threads are busy
+    connection-timeout: 20000  # Connection timeout in milliseconds
+
+spring:
+  application:
+    name: PillTrack
+
+  # Lazy initialization for faster startup
+  main:
+    lazy-initialization: true
+
+  # Database Configuration (PostgreSQL - Aiven Cloud)
+  datasource:
+    url: jdbc:postgresql://pg-21f07101-edusyncuiu.i.aivencloud.com:16537/defaultdb?sslmode=require
+    username: avnadmin
+    password: AVNS_mp_gm0Sfdjzv9LazqwK
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20      # Increased for concurrent access
+      minimum-idle: 10           # Increased minimum idle connections
+      idle-timeout: 300000
+      connection-timeout: 20000
+      max-lifetime: 1200000
+      pool-name: PillTrackHikariPool
+
+  # Task execution for async processing
+  task:
+    execution:
+      pool:
+        core-size: 10            # Core thread pool size
+        max-size: 50             # Maximum thread pool size
+        queue-capacity: 100      # Queue capacity for pending tasks
+        keep-alive: 60s          # Keep alive time for idle threads
+      thread-name-prefix: pilltrack-async-
+    scheduling:
+      pool:
+        size: 5                  # Scheduled task thread pool size
+      thread-name-prefix: pilltrack-scheduled-
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        jdbc:
+          time_zone: UTC
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+    open-in-view: false
+    defer-datasource-initialization: true
+
+  # Email Configuration
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:dishchord3@gmail.com}
+    password: ${MAIL_PASSWORD:brvk reyq zmpn bxzd}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+  # File Upload Configuration
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  # Quartz Configuration
+  quartz:
+    job-store-type: jdbc
+    jdbc:
+      initialize-schema: always
+    properties:
+      org:
+        quartz:
+          scheduler:
+            instanceName: PillTrackScheduler
+            instanceId: AUTO
+          jobStore:
+            class: org.springframework.scheduling.quartz.LocalDataSourceJobStore
+            driverDelegateClass: org.quartz.impl.jdbcjobstore.PostgreSQLDelegate
+            useProperties: true
+            misfireThreshold: 60000
+            tablePrefix: QRTZ_
+            isClustered: false
+          threadPool:
+            class: org.quartz.simpl.SimpleThreadPool
+            threadCount: 10
+            threadPriority: 5
+
+# Application-level Configuration
+app:
+  # JWT Configuration
+  jwt:
+    secret: ${JWT_SECRET:UGlsbFRyYWNrU2VjcmV0S2V5Rm9ySldUVG9rZW5HZW5lcmF0aW9uTXVzdEJlQXRMZWFzdDUxMkJpdHNMb25nRm9ySFM1MTJBbGdvcml0aG1TZWN1cml0eVJlcXVpcmVtZW50czIwMjY=}
+    expiration: 900000 # 15 minutes in milliseconds
+    refresh-expiration: 604800000 # 7 days in milliseconds
+  low-stock-threshold-days: 7
+  reminder-snooze-options: 5,10,15,30
+  max-login-attempts: 5
+  password-reset-token-expiry: 3600000 # 1 hour
+  # OTP Configuration
+  otp:
+    length: 6
+    expiry-minutes: 10
+  default-timezone: Asia/Dhaka
+  default-currency: BDT
+  # Data seeding - set to false to skip heavy seeding on startup
+  seed-demo-data: false
+
+# SSLCommerz Configuration
+sslcommerz:
+  store-id: ${SSLCOMMERZ_STORE_ID:pillt6962a427ee7d7}
+  store-password: ${SSLCOMMERZ_STORE_PASSWORD:pillt6962a427ee7d7@ssl}
+  sandbox: true
+  api-url: https://sandbox.sslcommerz.com/gwprocess/v4/api.php
+  validation-url: https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php
+  success-url: ${FRONTEND_URL:http://localhost:5173}/payment/success
+  fail-url: ${FRONTEND_URL:http://localhost:5173}/payment/fail
+  cancel-url: ${FRONTEND_URL:http://localhost:5173}/payment/cancel
+  ipn-url: ${BACKEND_URL:http://localhost:8081}/api/payments/ipn
+
+# CORS Configuration
+cors:
+  allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
+  allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
+  allowed-headers: "*"
+  allow-credentials: true
+
+# File Storage Configuration
+file:
+  upload-dir: ${FILE_UPLOAD_DIR:./uploads}
+  prescription-dir: ${FILE_UPLOAD_DIR:./uploads}/prescriptions
+  shop-images-dir: ${FILE_UPLOAD_DIR:./uploads}/shops
+  medicine-images-dir: ${FILE_UPLOAD_DIR:./uploads}/medicines
+
+# Logging Configuration
+logging:
+  level:
+    root: WARN
+    com.pilltrack: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.boot: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+  file:
+    name: logs/pilltrack.log
+
+# OpenAPI/Swagger Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+  show-actuator: false
