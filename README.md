@@ -22,7 +22,7 @@
 - [Features](#-features)
 - [Tech Stack](#-tech-stack)
 - [Architecture](#-architecture)
-- [Getting Started](#-getting-started)
+- [How to run and Tools](#-getting-started)
 - [Project Structure](#-project-structure)
 - [Database Schema](#-database-schema)
 - [API Reference](#-api-reference)
