@@ -31,7 +31,7 @@
 - [Class Diagrams](#-class-diagrams)
 - [Configuration](#-configuration)
 - [Data Sources](#-data-sources)
-- [How to run](#-How-to-run)
+
 
 ---
 
@@ -214,6 +214,11 @@ JWT Token attached → Controller → Service → Repository → Database
 - **Node.js 18+** and npm
 - **PostgreSQL 15+** (or use cloud instance)
 - **Maven 3.9+** (or use included wrapper)
+
+### How to run
+- step 1: run command <.\install.ps1>
+- step 2: run command <.\setup-networks.ps1>
+- step 3: run command <.\start.ps1>
 
 ### Installation
 
@@ -1639,12 +1644,7 @@ This project is developed for educational purposes as part of the Advanced Objec
 - **Year**: 2026
 
 ---
-## How to run
-- step 1: run command <.\install.ps1>
-- step 2: run command <.\setup-networks.ps1>
-- step 3: run command <.\start.ps1>
 
----
 
 <div align="center">
 
