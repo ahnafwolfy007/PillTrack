@@ -18,7 +18,7 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Write-Host ""
 Write-Host "[INFO] Starting Spring Boot Backend (LOCAL profile with H2)..." -ForegroundColor Green
 $backendPath = Join-Path $scriptDir "backend"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$backendPath'; .\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$backendPath'; .\mvnw.cmd spring-boot:run '-Dspring-boot.run.profiles=local'" -WindowStyle Normal
 
 # Wait a moment for backend to initialize
 Write-Host "[INFO] Waiting for backend to initialize..." -ForegroundColor Yellow
