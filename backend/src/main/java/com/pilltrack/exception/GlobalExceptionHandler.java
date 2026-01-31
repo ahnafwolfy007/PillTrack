@@ -150,7 +150,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleAllUncaughtException(
             Exception ex, HttpServletRequest request) {
-        log.error("Unhandled exception: ", ex);
+        
+        // Check for wrapped BadCredentialsException
+        Throwable cause = ex.getCause();
+        if (cause instanceof BadCredentialsException) {
+            return handleBadCredentialsException((BadCredentialsException) cause, request);
+        }
+        
+        log.error("Unhandled exception of type {}: ", ex.getClass().getName(), ex);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("An unexpected error occurred. Please try again later.", 

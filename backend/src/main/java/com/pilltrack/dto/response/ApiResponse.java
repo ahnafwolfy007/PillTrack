@@ -25,7 +25,7 @@ public class ApiResponse<T> {
     private String error;
     private List<String> errors;
     private Map<String, String> fieldErrors;
-    private LocalDateTime timestamp;
+    private String timestamp;
     private String path;
     
     public static <T> ApiResponse<T> success(T data) {
@@ -34,7 +34,7 @@ public class ApiResponse<T> {
                 .message("Success")
                 .data(data)
                 .status(HttpStatus.OK.value())
-                .timestamp(LocalDateTime.now())
+                .timestamp(LocalDateTime.now().toString())
                 .build();
     }
     
@@ -44,7 +44,7 @@ public class ApiResponse<T> {
                 .message(message)
                 .data(data)
                 .status(HttpStatus.OK.value())
-                .timestamp(LocalDateTime.now())
+                .timestamp(LocalDateTime.now().toString())
                 .build();
     }
     
@@ -54,7 +54,7 @@ public class ApiResponse<T> {
                 .message(message)
                 .data(data)
                 .status(HttpStatus.CREATED.value())
-                .timestamp(LocalDateTime.now())
+                .timestamp(LocalDateTime.now().toString())
                 .build();
     }
     
@@ -64,7 +64,7 @@ public class ApiResponse<T> {
                 .message(message)
                 .error(message)
                 .status(status.value())
-                .timestamp(LocalDateTime.now())
+                .timestamp(LocalDateTime.now().toString())
                 .build();
     }
     
@@ -74,7 +74,7 @@ public class ApiResponse<T> {
                 .message(message)
                 .error(message)
                 .status(status.value())
-                .timestamp(LocalDateTime.now())
+                .timestamp(LocalDateTime.now().toString())
                 .path(path)
                 .build();
     }
@@ -86,7 +86,7 @@ public class ApiResponse<T> {
                 .error("Validation failed")
                 .fieldErrors(fieldErrors)
                 .status(HttpStatus.BAD_REQUEST.value())
-                .timestamp(LocalDateTime.now())
+                .timestamp(LocalDateTime.now().toString())
                 .build();
     }
 }

@@ -67,7 +67,11 @@ const statusConfig = {
 };
 
 // Side-by-Side Comparison Component
-const MedicationComparison = ({ currentMedication, proposedChanges, requestType }) => {
+const MedicationComparison = ({
+  currentMedication,
+  proposedChanges,
+  requestType,
+}) => {
   // Parse proposed changes if it's a string
   let proposed = proposedChanges;
   if (typeof proposedChanges === "string") {
@@ -76,6 +80,11 @@ const MedicationComparison = ({ currentMedication, proposedChanges, requestType 
     } catch (e) {
       proposed = {};
     }
+  }
+
+  // Normalize to an object to avoid null/undefined access
+  if (!proposed || typeof proposed !== "object") {
+    proposed = {};
   }
 
   const fields = [
@@ -128,7 +137,9 @@ const MedicationComparison = ({ currentMedication, proposedChanges, requestType 
             return (
               <div key={key} className="flex justify-between text-sm">
                 <span className="text-slate-600">{label}:</span>
-                <span className="font-medium text-red-800 line-through">{value}</span>
+                <span className="font-medium text-red-800 line-through">
+                  {value}
+                </span>
               </div>
             );
           })}
@@ -138,13 +149,22 @@ const MedicationComparison = ({ currentMedication, proposedChanges, requestType 
   }
 
   // For updates, show side-by-side comparison
+  if (requestType !== "CREATE" && !currentMedication) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800">
+        No current medication data available to compare. Please ask your doctor
+        to resend the request.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
         <ArrowLeftRight className="w-4 h-4" />
         Compare Changes
       </h4>
-      
+
       <div className="grid md:grid-cols-2 gap-4">
         {/* Current */}
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
@@ -155,23 +175,28 @@ const MedicationComparison = ({ currentMedication, proposedChanges, requestType 
             {fields.map(({ key, label }) => {
               const currentValue = currentMedication?.[key];
               const proposedValue = proposed[key];
-              const isChanged = proposedValue !== undefined && proposedValue !== currentValue;
-              
+              const isChanged =
+                proposedValue !== undefined && proposedValue !== currentValue;
+
               if (!currentValue && !proposedValue) return null;
-              
+
               return (
-                <div 
-                  key={key} 
+                <div
+                  key={key}
                   className={cn(
                     "flex justify-between text-sm py-1 px-2 rounded",
-                    isChanged && "bg-red-50"
+                    isChanged && "bg-red-50",
                   )}
                 >
                   <span className="text-slate-500">{label}:</span>
-                  <span className={cn(
-                    "font-medium",
-                    isChanged ? "text-red-600 line-through" : "text-slate-800"
-                  )}>
+                  <span
+                    className={cn(
+                      "font-medium",
+                      isChanged
+                        ? "text-red-600 line-through"
+                        : "text-slate-800",
+                    )}
+                  >
                     {currentValue || "—"}
                   </span>
                 </div>
@@ -189,26 +214,32 @@ const MedicationComparison = ({ currentMedication, proposedChanges, requestType 
             {fields.map(({ key, label }) => {
               const currentValue = currentMedication?.[key];
               const proposedValue = proposed[key];
-              const isChanged = proposedValue !== undefined && proposedValue !== currentValue;
-              const displayValue = proposedValue !== undefined ? proposedValue : currentValue;
-              
+              const isChanged =
+                proposedValue !== undefined && proposedValue !== currentValue;
+              const displayValue =
+                proposedValue !== undefined ? proposedValue : currentValue;
+
               if (!currentValue && !proposedValue) return null;
-              
+
               return (
-                <div 
-                  key={key} 
+                <div
+                  key={key}
                   className={cn(
                     "flex justify-between text-sm py-1 px-2 rounded",
-                    isChanged && "bg-green-100"
+                    isChanged && "bg-green-100",
                   )}
                 >
                   <span className="text-slate-500">{label}:</span>
-                  <span className={cn(
-                    "font-medium",
-                    isChanged ? "text-green-700" : "text-slate-800"
-                  )}>
+                  <span
+                    className={cn(
+                      "font-medium",
+                      isChanged ? "text-green-700" : "text-slate-800",
+                    )}
+                  >
                     {displayValue || "—"}
-                    {isChanged && <span className="ml-1 text-green-600">✓</span>}
+                    {isChanged && (
+                      <span className="ml-1 text-green-600">✓</span>
+                    )}
                   </span>
                 </div>
               );
@@ -234,7 +265,8 @@ const ResponseModal = ({ request, isOpen, onClose, onRespond, loading }) => {
 
   if (!isOpen || !request) return null;
 
-  const typeConfig = requestTypeConfig[request.requestType] || requestTypeConfig.UPDATE;
+  const typeConfig =
+    requestTypeConfig[request.requestType] || requestTypeConfig.UPDATE;
   const TypeIcon = typeConfig.icon;
 
   return (
@@ -256,10 +288,12 @@ const ResponseModal = ({ request, isOpen, onClose, onRespond, loading }) => {
           <div className="p-6">
             {/* Header */}
             <div className="flex items-start gap-4 mb-6">
-              <div className={cn(
-                "w-12 h-12 rounded-xl flex items-center justify-center",
-                typeConfig.color
-              )}>
+              <div
+                className={cn(
+                  "w-12 h-12 rounded-xl flex items-center justify-center",
+                  typeConfig.color,
+                )}
+              >
                 <TypeIcon className="w-6 h-6" />
               </div>
               <div className="flex-1">
@@ -304,7 +338,7 @@ const ResponseModal = ({ request, isOpen, onClose, onRespond, loading }) => {
                   "flex-1 py-3 px-4 rounded-xl border-2 transition-all flex items-center justify-center gap-2",
                   action === "accept"
                     ? "border-green-500 bg-green-50 text-green-700"
-                    : "border-slate-200 text-slate-600 hover:border-slate-300"
+                    : "border-slate-200 text-slate-600 hover:border-slate-300",
                 )}
               >
                 <CheckCircle className="w-5 h-5" />
@@ -317,7 +351,7 @@ const ResponseModal = ({ request, isOpen, onClose, onRespond, loading }) => {
                   "flex-1 py-3 px-4 rounded-xl border-2 transition-all flex items-center justify-center gap-2",
                   action === "reject"
                     ? "border-red-500 bg-red-50 text-red-700"
-                    : "border-slate-200 text-slate-600 hover:border-slate-300"
+                    : "border-slate-200 text-slate-600 hover:border-slate-300",
                 )}
               >
                 <XCircle className="w-5 h-5" />
@@ -345,7 +379,8 @@ const ResponseModal = ({ request, isOpen, onClose, onRespond, loading }) => {
             {action === "accept" && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
                 <Info className="w-4 h-4 inline mr-2" />
-                By accepting, you authorize the doctor to make these changes to your medication.
+                By accepting, you authorize the doctor to make these changes to
+                your medication.
               </div>
             )}
 
@@ -363,7 +398,7 @@ const ResponseModal = ({ request, isOpen, onClose, onRespond, loading }) => {
                 onClick={() => onRespond(action === "accept", reason)}
                 className={cn(
                   "flex-1 gap-2",
-                  action === "reject" && "bg-red-600 hover:bg-red-700"
+                  action === "reject" && "bg-red-600 hover:bg-red-700",
                 )}
                 disabled={loading}
               >
@@ -394,7 +429,8 @@ const ResponseModal = ({ request, isOpen, onClose, onRespond, loading }) => {
 
 // Request Card
 const RequestCard = ({ request, onReview }) => {
-  const typeConfig = requestTypeConfig[request.requestType] || requestTypeConfig.UPDATE;
+  const typeConfig =
+    requestTypeConfig[request.requestType] || requestTypeConfig.UPDATE;
   const statusConf = statusConfig[request.status] || statusConfig.PENDING;
   const TypeIcon = typeConfig.icon;
   const StatusIcon = statusConf.icon;
@@ -419,23 +455,29 @@ const RequestCard = ({ request, onReview }) => {
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className={cn(
-            "w-12 h-12 rounded-xl flex items-center justify-center",
-            typeConfig.color
-          )}>
+          <div
+            className={cn(
+              "w-12 h-12 rounded-xl flex items-center justify-center",
+              typeConfig.color,
+            )}
+          >
             <TypeIcon className="w-6 h-6" />
           </div>
           <div>
             <h3 className="font-bold text-slate-800">
-              {request.medicationName || request.medication?.name || "New Medication"}
+              {request.medicationName ||
+                request.medication?.name ||
+                "New Medication"}
             </h3>
             <p className="text-sm text-slate-500">{typeConfig.label}</p>
           </div>
         </div>
-        <div className={cn(
-          "px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1",
-          statusConf.color
-        )}>
+        <div
+          className={cn(
+            "px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1",
+            statusConf.color,
+          )}
+        >
           <StatusIcon className="w-3 h-3" />
           {statusConf.label}
         </div>
@@ -457,16 +499,15 @@ const RequestCard = ({ request, onReview }) => {
       {request.message && (
         <div className="mb-4 p-3 bg-slate-50 rounded-lg">
           <p className="text-xs text-slate-500 mb-1">Doctor's Reason</p>
-          <p className="text-sm text-slate-700 line-clamp-2">{request.message}</p>
+          <p className="text-sm text-slate-700 line-clamp-2">
+            {request.message}
+          </p>
         </div>
       )}
 
       {/* Action */}
       {request.status === "PENDING" && (
-        <Button
-          className="w-full gap-2"
-          onClick={() => onReview(request)}
-        >
+        <Button className="w-full gap-2" onClick={() => onReview(request)}>
           <FileText className="w-4 h-4" />
           Review & Respond
         </Button>
@@ -480,7 +521,10 @@ const MedicationRequests = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("pending");
-  const [responseModal, setResponseModal] = useState({ open: false, request: null });
+  const [responseModal, setResponseModal] = useState({
+    open: false,
+    request: null,
+  });
   const [responding, setResponding] = useState(false);
 
   useEffect(() => {
@@ -508,11 +552,15 @@ const MedicationRequests = () => {
       await modificationRequestService.respond(
         responseModal.request.id,
         accept,
-        reason || null
+        reason || null,
       );
       setResponseModal({ open: false, request: null });
       // Show success message
-      alert(accept ? "Request accepted! The doctor can now modify your medication." : "Request rejected.");
+      alert(
+        accept
+          ? "Request accepted! The doctor can now modify your medication."
+          : "Request rejected.",
+      );
       fetchRequests();
     } catch (err) {
       console.error("Failed to respond:", err);
@@ -525,7 +573,8 @@ const MedicationRequests = () => {
   // Filter by tab
   const filteredRequests = requests.filter((req) => {
     if (activeTab === "pending") return req.status === "PENDING";
-    if (activeTab === "responded") return ["ACCEPTED", "REJECTED"].includes(req.status);
+    if (activeTab === "responded")
+      return ["ACCEPTED", "REJECTED"].includes(req.status);
     return true;
   });
 
@@ -564,7 +613,9 @@ const MedicationRequests = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-yellow-700">Pending</p>
-                <p className="text-2xl font-bold text-yellow-800">{stats.pending}</p>
+                <p className="text-2xl font-bold text-yellow-800">
+                  {stats.pending}
+                </p>
               </div>
               <Clock className="w-8 h-8 text-yellow-500" />
             </div>
@@ -575,7 +626,9 @@ const MedicationRequests = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-green-700">Accepted</p>
-                <p className="text-2xl font-bold text-green-800">{stats.accepted}</p>
+                <p className="text-2xl font-bold text-green-800">
+                  {stats.accepted}
+                </p>
               </div>
               <CheckCircle className="w-8 h-8 text-green-500" />
             </div>
@@ -586,7 +639,9 @@ const MedicationRequests = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-red-700">Rejected</p>
-                <p className="text-2xl font-bold text-red-800">{stats.rejected}</p>
+                <p className="text-2xl font-bold text-red-800">
+                  {stats.rejected}
+                </p>
               </div>
               <XCircle className="w-8 h-8 text-red-500" />
             </div>
@@ -602,7 +657,7 @@ const MedicationRequests = () => {
             "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
             activeTab === "pending"
               ? "border-primary text-primary"
-              : "border-transparent text-slate-500 hover:text-slate-700"
+              : "border-transparent text-slate-500 hover:text-slate-700",
           )}
         >
           Pending ({stats.pending})
@@ -613,7 +668,7 @@ const MedicationRequests = () => {
             "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
             activeTab === "responded"
               ? "border-primary text-primary"
-              : "border-transparent text-slate-500 hover:text-slate-700"
+              : "border-transparent text-slate-500 hover:text-slate-700",
           )}
         >
           Responded
@@ -624,7 +679,7 @@ const MedicationRequests = () => {
             "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
             activeTab === "all"
               ? "border-primary text-primary"
-              : "border-transparent text-slate-500 hover:text-slate-700"
+              : "border-transparent text-slate-500 hover:text-slate-700",
           )}
         >
           All ({requests.length})
