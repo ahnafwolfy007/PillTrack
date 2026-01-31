@@ -31,6 +31,7 @@
 - [Class Diagrams](#-class-diagrams)
 - [Configuration](#-configuration)
 - [Data Sources](#-data-sources)
+- [How to run](#-How-to-run)
 
 ---
 
@@ -1636,6 +1637,12 @@ This project is developed for educational purposes as part of the Advanced Objec
 - **Developer**: PillTrack Team
 - **Course**: Advanced Object-Oriented Programming (AOOP)
 - **Year**: 2026
+
+---
+## How to run
+- step 1: run command <.\install.ps1>
+- step 2: run command <.\setup-networks.ps1>
+- step 3: run command <.\start.ps1>
 
 ---
 
